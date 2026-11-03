@@ -48,6 +48,36 @@ function chanceText(t) {
 }
 
 /* ---------------- импорт сцены и журналов ---------------- */
+/* Подгонка карты под сетку. Картинка нарисована так: центр гекса (ряд 0, столбец 0) в (W/2, R),
+   шаг по столбцам W, по рядам 1.5R, нечётные ряды сдвинуты на W/2. Меряем, как Foundry реально
+   ставит центры гексов, и кладём карту тайлом с нужным масштабом и сдвигом. */
+async function fitMap(scene, S) {
+  const W = S.gridSize, R = W / Math.sqrt(3);
+  const lastR = 20, lastC = 27;
+  const measure = () => {
+    const g = scene.grid;
+    const a = g.getCenterPoint({ i: 0, j: 0 });
+    const b = g.getCenterPoint({ i: 0, j: lastC });
+    const c = g.getCenterPoint({ i: lastR, j: 0 });
+    const d = g.getCenterPoint({ i: 1, j: 0 });
+    return { a, sx: (b.x - a.x) / (lastC * W), sy: (c.y - a.y) / (lastR * 1.5 * R), odd: d.x - a.x };
+  };
+  let m = measure();
+  if (Math.abs(m.sx - 1) > 0.001 || Math.abs(m.sy - 1) > 0.001) {
+    await scene.update({ width: Math.ceil(S.width * m.sx), height: Math.ceil(S.height * m.sy) });
+    m = measure();
+  }
+  if (m.odd < 0) ui.notifications.warn("Ряды гексов сдвинуты в другую сторону, чем на карте. Напиши Claude.");
+  const tf = { sx: m.sx, sy: m.sy, ox: m.a.x - (W / 2) * m.sx, oy: m.a.y - R * m.sy };
+  const tile = { x: Math.round(tf.ox), y: Math.round(tf.oy), width: Math.round(S.width * tf.sx), height: Math.round(S.height * tf.sy),
+    texture: { src: `${ROOT}/assets/island-map-hd.webp` }, locked: true, sort: -100000, flags: { [MOD]: { map: true } } };
+  const ex = scene.tiles.find((t) => t.getFlag(MOD, "map"));
+  if (ex) await ex.update(tile);
+  else await scene.createEmbeddedDocuments("Tile", [tile]);
+  await scene.setFlag(MOD, "fit", tf);
+  return tf;
+}
+
 async function importIsland() {
   if (!game.user.isGM) return;
   const C = await content();
@@ -80,13 +110,13 @@ async function importIsland() {
   const S = C.scene;
   const notes = C.notes.map((n) => {
     const ref = ids[`${n.journal}/${n.page}`] ?? {};
-    return { entryId: ref.entryId, pageId: ref.pageId, x: n.x, y: n.y, text: n.label,
+    return { entryId: ref.entryId, pageId: ref.pageId, _x: n.x, _y: n.y, text: n.label,
       texture: { src: n.icon, tint: n.tint }, iconSize: 40, fontSize: 22,
       textAnchor: CONST.TEXT_ANCHOR_POINTS.BOTTOM, global: false, flags: { [MOD]: { gm: true } } };
   });
   const sceneData = {
     name: S.name, folder: sFolder.id, navigation: true,
-    background: { src: `${ROOT}/assets/island-map-hd.webp` }, width: S.width, height: S.height, padding: 0,
+    background: { src: null }, width: S.width, height: S.height, padding: 0,
     backgroundColor: "#173a49",
     grid: { type: CONST.GRID_TYPES.HEXODDR, size: S.gridSize, distance: 1, units: "гекс", color: "#000000", alpha: 0.22, thickness: 1 },
     tokenVision: true, fog: { exploration: true },
@@ -95,14 +125,15 @@ async function importIsland() {
     flags: { [MOD]: { isle: true } }
   };
   let scene = game.scenes.find((s) => s.getFlag(MOD, "isle")) ?? game.scenes.find((s) => s.name === S.name);
-  if (scene) {
-    await scene.update(sceneData);
-    const old = scene.notes.filter((n) => n.getFlag(MOD, "gm")).map((n) => n.id);
-    if (old.length) await scene.deleteEmbeddedDocuments("Note", old);
-    await scene.createEmbeddedDocuments("Note", notes);
-  } else {
-    scene = await Scene.create({ ...sceneData, notes });
-  }
+  if (scene) await scene.update(sceneData);
+  else scene = await Scene.create(sceneData);
+  // карта кладётся тайлом точно по сетке Foundry, пины — по тем же координатам
+  const tf = await fitMap(scene, S);
+  const placed = notes.map(({ _x, _y, ...n }) => ({ ...n, x: Math.round(tf.ox + _x * tf.sx), y: Math.round(tf.oy + _y * tf.sy) }));
+  const old = scene.notes.filter((n) => n.getFlag(MOD, "gm")).map((n) => n.id);
+  if (old.length) await scene.deleteEmbeddedDocuments("Note", old);
+  await scene.createEmbeddedDocuments("Note", placed);
+  await scene.update({ initial: { x: Math.round(tf.ox + S.start[0] * tf.sx), y: Math.round(tf.oy + S.start[1] * tf.sy), scale: 0.6 } });
   const st = getState(scene);
   st.diaryId = diary.id;
   if (!st.explored.length) st.explored = ["18,14", "18,15", "17,14", "17,15", "19,14", "19,15", "18,13", "18,16"];
