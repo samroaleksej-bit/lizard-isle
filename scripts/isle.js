@@ -1,5 +1,5 @@
 // Скрытые земли · Остров — интерактивный гекс-краул для Foundry VTT v13/v14.
-import { openBook, refreshBook, logEntry, toast } from "./book.js";
+import { openBook, toggleBook, refreshBook, logEntry, toast } from "./book.js";
 import { startFX, stopFX, refreshPools, hoverAt, pingHex, weatherFor } from "./fx.js";
 
 export const MOD = "lizard-isle";
@@ -336,7 +336,7 @@ async function newDay() {
   logEntry(st, `Рассвет. Погода: ${w.split(":")[0]}.`, "day");
   await saveState(st);
   try { await canvas.scene.update({ weather: weatherFor(w) }); } catch (e) {}
-  toast({ title: `День ${st.day}`, sub: w.split(":")[0], color: "#c98a1e", icon: "☀" }, true);
+  toast({ title: `День ${st.day}`, sub: w.split(":")[0], color: "#c98a1e", icon: "☀", tab: "chronicle" }, true);
   await ChatMessage.create({ speaker: { alias: "Остров" },
     content: `<div class="isle-chat"><h3>☀ День ${st.day}</h3><p>Погода (к6 = ${roll.total}): <b>${esc(w)}</b></p></div>` });
   await ChatMessage.create({ speaker: { alias: "Остров" }, whisper: ChatMessage.getWhisperRecipients("GM").map((u) => u.id),
@@ -370,7 +370,7 @@ async function revealItem(item) {
   if (!st.explored.includes(k)) st.explored.push(k);
   logEntry(st, `Найдено: ${res.nm} (${coord(I, item.at[0], item.at[1])}).`, "find");
   await saveState(st);
-  toast({ title: `Находка: ${res.nm}`, sub: coord(I, item.at[0], item.at[1]), color: item.tint || "#7a4a1c", icon: "✦" }, true);
+  toast({ title: `Находка: ${res.nm}`, sub: coord(I, item.at[0], item.at[1]), color: item.tint || "#7a4a1c", icon: "✦", tab: "finds", sel: item.key }, true);
   pulseHex(item.at[0], item.at[1], item.tint || "#ffd27a");
 }
 
@@ -481,7 +481,7 @@ function renderBar() {
   bar.innerHTML = btns.join("");
   document.body.appendChild(bar);
   bar.querySelector("[data-b=panel]")?.addEventListener("click", openPanel);
-  bar.querySelector("[data-b=book]")?.addEventListener("click", () => openBook());
+  bar.querySelector("[data-b=book]")?.addEventListener("click", () => toggleBook());
   bar.querySelector("[data-b=diary]")?.addEventListener("click", () => game.journal.get(getState().diaryId)?.sheet.render(true));
   bar.querySelector("[data-b=pins]")?.addEventListener("click", async () => {
     const v = game.settings.get("core", "notesDisplayToggle");

@@ -17,12 +17,17 @@ export function logEntry(st, text, kind = "note") {
 }
 
 /* ---------- уведомление-свиток у всех ---------- */
-export function toast({ title, sub = "", color = "#7a4a1c", icon = "📜" }, broadcast = false) {
-  if (broadcast) game.socket.emit(`module.${MOD}`, { action: "toast", data: { title, sub, color, icon } });
+export function toast({ title, sub = "", color = "#7a4a1c", icon = "📜", tab = null, sel = null }, broadcast = false) {
+  if (broadcast) game.socket.emit(`module.${MOD}`, { action: "toast", data: { title, sub, color, icon, tab, sel } });
   const el = document.createElement("div");
   el.className = "xb-toast";
   el.style.setProperty("--seal", color);
   el.innerHTML = `<i class="xb-roll l"></i><div class="xb-paper"><span class="xb-seal sm">${icon}</span><div><b>${esc(title)}</b>${sub ? `<em>${esc(sub)}</em>` : ""}</div></div><i class="xb-roll r"></i>`;
+  if (tab) {
+    el.classList.add("click");
+    el.title = "Открыть в журнале";
+    el.addEventListener("click", () => { openBook(tab, sel); el.classList.add("out"); });
+  }
   document.body.appendChild(el);
   try { foundry.audio.AudioHelper.play({ src: "sounds/notify.wav", volume: 0.35, autoplay: true, loop: false }, false); } catch (e) {}
   setTimeout(() => el.classList.add("out"), 5200);
@@ -161,16 +166,23 @@ export class QuestBook extends ApplicationV2 {
       const page = diary?.pages.get(pt.dataset.pagetext);
       pt.innerHTML = page?.text?.content ?? "";
     }
-    // перетаскивание за обложку
-    const app = this;
-    content.querySelectorAll("[data-drag]").forEach((h) => h.addEventListener("pointerdown", (e) => {
-      if (e.target !== h) return;
-      const sx = e.clientX, sy = e.clientY, p0 = { ...app.position };
-      const mv = (ev) => app.setPosition({ left: p0.left + ev.clientX - sx, top: p0.top + ev.clientY - sy });
-      const up = () => { window.removeEventListener("pointermove", mv); window.removeEventListener("pointerup", up); };
+    // окно поверх всего: своё положение, перетаскивание за обложку, клик — на передний план
+    const el = this.element;
+    placeWindow(el);
+    el.onpointerdown = () => toFront(el);
+    content.querySelector(".xb-cover").addEventListener("pointerdown", (e) => {
+      if (e.button !== 0 || e.target.closest(".xb-page, button, a, input, select, .xb-ribbons")) return;
+      e.preventDefault();
+      const sx = e.clientX, sy = e.clientY, p0 = { ...POS };
+      el.classList.add("dragging");
+      const mv = (ev) => { POS.left = p0.left + ev.clientX - sx; POS.top = p0.top + ev.clientY - sy; placeWindow(el); };
+      const up = () => { el.classList.remove("dragging"); window.removeEventListener("pointermove", mv); window.removeEventListener("pointerup", up); savePos(); };
       window.addEventListener("pointermove", mv); window.addEventListener("pointerup", up);
-    }));
+    });
   }
+
+  // положением окна управляем сами, чтобы Foundry его не сбрасывал
+  setPosition() { if (this.element) placeWindow(this.element); return this.position; }
 
   async close(options) {
     const el = this.element?.querySelector(".xb-book");
@@ -181,13 +193,31 @@ export class QuestBook extends ApplicationV2 {
 }
 
 let book = null;
-export function openBook(tab) {
+/* положение окна запоминается у каждого игрока */
+const POS = { left: null, top: null };
+try { Object.assign(POS, JSON.parse(localStorage.getItem(`${MOD}.bookPos`) || "{}")); } catch (e) {}
+function savePos() { try { localStorage.setItem(`${MOD}.bookPos`, JSON.stringify(POS)); } catch (e) {} }
+let Z = 9000;
+function toFront(el) { el.style.zIndex = String(++Z); }
+function placeWindow(el) {
+  const w = Math.min(1000, window.innerWidth - 40), h = Math.min(660, window.innerHeight - 40);
+  if (POS.left === null || POS.top === null) { POS.left = (window.innerWidth - w) / 2; POS.top = (window.innerHeight - h) / 2; }
+  // не даём утащить книгу за край экрана целиком
+  POS.left = Math.max(-w + 120, Math.min(window.innerWidth - 120, POS.left));
+  POS.top = Math.max(0, Math.min(window.innerHeight - 60, POS.top));
+  Object.assign(el.style, { position: "fixed", left: `${POS.left}px`, top: `${POS.top}px`, width: `${w}px`, height: `${h}px`, margin: "0" });
+  if (!el.style.zIndex) toFront(el);
+}
+
+export function openBook(tab, sel = null) {
   if (!isIsle()) return ui.notifications.warn("Журнал работает на сцене острова.");
   book ??= new QuestBook();
-  if (tab) book.view = { tab, sel: null };
-  const w = Math.min(1000, window.innerWidth - 40), h = Math.min(660, window.innerHeight - 40);
-  book.render({ force: true, position: { width: w, height: h, left: (window.innerWidth - w) / 2, top: (window.innerHeight - h) / 2 } });
+  if (tab) book.view = { tab, sel };
+  if (book.rendered) { book._turn = true; book.render(); toFront(book.element); return; }
+  book.render({ force: true });
 }
+window.addEventListener("resize", () => { if (book?.rendered) placeWindow(book.element); });
+export function toggleBook() { if (book?.rendered) book.close(); else openBook(); }
 export function refreshBook() { if (book?.rendered) book.render(); }
 
 function panTo(r, c) {
@@ -211,7 +241,7 @@ async function setQuest(id, status) {
   await saveState(st);
   if (status) {
     const head = { active: "Новое задание", done: "Задание выполнено", failed: "Задание провалено" }[status];
-    toast({ title: `${head}: ${q.n}`, sub: `${f.n} · ${f.giver}`, color: f.color, icon: status === "done" ? "✔" : status === "failed" ? "✖" : "📜" }, true);
+    toast({ title: `${head}: ${q.n}`, sub: `${f.n} · ${f.giver}`, color: f.color, icon: status === "done" ? "✔" : status === "failed" ? "✖" : "📜", tab: "quests", sel: q.id }, true);
     if (status === "active") pulseHex(q.at[0], q.at[1], f.color, true);
   }
 }
@@ -227,5 +257,5 @@ async function changeRep(fk, d) {
   const f = I.FQ[fk];
   logEntry(st, `${f.n}: ${d > 0 ? "отношение улучшилось" : "отношение ухудшилось"} — ${REP[v + 3].toLowerCase()}.`, d > 0 ? "up" : "down");
   await saveState(st);
-  toast({ title: `${f.n}: ${REP[v + 3]}`, sub: d > 0 ? "К вам относятся лучше" : "К вам относятся хуже", color: f.color, icon: d > 0 ? "▲" : "▼" }, true);
+  toast({ title: `${f.n}: ${REP[v + 3]}`, sub: d > 0 ? "К вам относятся лучше" : "К вам относятся хуже", color: f.color, icon: d > 0 ? "▲" : "▼", tab: "factions" }, true);
 }
