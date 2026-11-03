@@ -1,6 +1,9 @@
 // Скрытые земли · Остров — интерактивный гекс-краул для Foundry VTT v13/v14.
-const MOD = "lizard-isle";
-const ROOT = `modules/${MOD}`;
+import { openBook, refreshBook, logEntry, toast } from "./book.js";
+import { startFX, stopFX, refreshPools, hoverAt, pingHex, weatherFor } from "./fx.js";
+
+export const MOD = "lizard-isle";
+export const ROOT = `modules/${MOD}`;
 const DIARY_NAME = "Дневник экспедиции";
 const MARKS = [["⛺", "Лагерь"], ["👣", "Следы"], ["⚠️", "Опасно"], ["💧", "Вода"], ["❓", "Загадка"], ["⭐", "Важное"], ["💀", "Смерть"]];
 
@@ -8,7 +11,7 @@ let ISLAND = null;
 let CONTENT = null;
 
 /* ---------------- данные ---------------- */
-async function island() {
+export async function island() {
   if (!ISLAND) ISLAND = await (await fetch(`${ROOT}/data/island.json`)).json();
   return ISLAND;
 }
@@ -16,17 +19,23 @@ async function content() {
   if (!CONTENT) CONTENT = await (await fetch(`${ROOT}/data/content.json`)).json();
   return CONTENT;
 }
-const isIsle = (scene = canvas?.scene) => !!scene?.getFlag(MOD, "isle");
-const activeGM = () => game.users.activeGM?.isSelf ?? game.user.isGM;
-const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[m]));
+export const isIsle = (scene = canvas?.scene) => !!scene?.getFlag(MOD, "isle");
+export const activeGM = () => game.users.activeGM?.isSelf ?? game.user.isGM;
+export const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[m]));
 
-function getState(scene = canvas.scene) {
+export function getState(scene = canvas.scene) {
   const s = scene?.getFlag(MOD, "state") ?? {};
-  return { day: 1, hours: 0, explored: [], revealed: [], party: null, lastHex: null, diaryId: null, ...foundry.utils.deepClone(s) };
+  return { day: 1, hours: 0, explored: [], revealed: [], party: null, lastHex: null, diaryId: null, quests: {}, rep: {}, log: [], ...foundry.utils.deepClone(s) };
 }
-async function saveState(state, scene = canvas.scene) {
+export async function saveState(state, scene = canvas.scene) {
   // все ключи состояния всегда на месте, массивы при слиянии заменяются целиком
   await scene.setFlag(MOD, "state", state);
+}
+
+/* волна на гексе у всех игроков */
+export function pulseHex(r, c, color = "#ffd27a", broadcast = true) {
+  pingHex(r, c, color);
+  if (broadcast) game.socket.emit(`module.${MOD}`, { action: "pulse", sceneId: canvas.scene?.id, r, c, color });
 }
 
 /* ---------------- гексы ---------------- */
@@ -37,8 +46,8 @@ function hexAt(point) {
 function inMap(I, r, c) {
   return r >= 0 && r < I.RAW.length && c >= 0 && c < I.RAW[0].length;
 }
-const hkey = (r, c) => `${r},${c}`;
-const coord = (I, r, c) => `${I.ROWS[r]}-${c + 1}`;
+export const hkey = (r, c) => `${r},${c}`;
+export const coord = (I, r, c) => `${I.ROWS[r]}-${c + 1}`;
 function neighbors(r, c) {
   try { return canvas.grid.getAdjacentOffsets({ i: r, j: c }).map((o) => [o.i, o.j]); }
   catch (e) { return []; }
@@ -92,7 +101,7 @@ async function liveFit() {
     if (tile) await tile.update(want);
     // пины мастера и игроков переезжают вместе с картой
     const move = (x, y) => ({ x: Math.round(tf.ox + ((x - old.ox) / old.sx) * sx), y: Math.round(tf.oy + ((y - old.oy) / old.sy) * sy) });
-    const upd = scene.notes.filter((n) => n.getFlag(MOD, "gm") || n.getFlag(MOD, "player")).map((n) => ({ _id: n.id, ...move(n.x, n.y) }));
+    const upd = scene.notes.filter((n) => n.getFlag(MOD, "gm")).map((n) => ({ _id: n.id, ...move(n.x, n.y) }));
     if (upd.length) await scene.updateEmbeddedDocuments("Note", upd);
     await scene.setFlag(MOD, "fit", tf);
     ui.notifications.info("Остров: карта подогнана под сетку.");
@@ -219,7 +228,7 @@ function sameHex(drawing, r, c) {
   return h.r === r && h.c === c;
 }
 
-function openDiaryPage(pageId) {
+export function openDiaryPage(pageId) {
   const diary = game.journal.get(getState().diaryId);
   if (!diary) return;
   diary.sheet.render(true);
@@ -309,6 +318,12 @@ async function onTokenMoved(doc, changes) {
     const tired = before <= 8 && st.hours > 8 ? `<br>😓 <b>Больше 8 часов в пути:</b> Тел СЛ 12 от истощения или разбить лагерь.` : "";
     lines.push(`<li><b>${coord(I, r, c)} · ${esc(t.n)}</b> (+${t.h} ч)${ch === "r" ? `<br>🌊 ${esc(t.note)}` : ""}${enc}${here ? `<br>📌 ${here.map(esc).join("; ")}` : ""}${tired}</li>`);
   }
+  const land = path.filter(([r, c]) => inMap(I, r, c) && I.RAW[r][c] !== "~");
+  if (land.length) {
+    const from = st.lastHex ? st.lastHex.split(",").map(Number) : null;
+    const kinds = [...new Set(land.map(([r, c]) => I.T[I.RAW[r][c]].n))].join(", ");
+    logEntry(st, `Переход${from ? ` ${coord(I, from[0], from[1])} →` : ""} ${coord(I, to.r, to.c)}: ${kinds}. В пути ${st.hours} ч.`, "move");
+  }
   st.explored = [...explored];
   st.lastHex = toKey;
   await saveState(st, doc.parent);
@@ -324,9 +339,12 @@ async function newDay() {
   const I = await island();
   const st = getState();
   st.day += 1; st.hours = 0;
-  await saveState(st);
   const roll = await new Roll("1d6").evaluate();
   const w = I.WEATHER[roll.total - 1];
+  logEntry(st, `Рассвет. Погода: ${w.split(":")[0]}.`, "day");
+  await saveState(st);
+  try { await canvas.scene.update({ weather: weatherFor(w) }); } catch (e) {}
+  toast({ title: `День ${st.day}`, sub: w.split(":")[0], color: "#c98a1e", icon: "☀" }, true);
   await ChatMessage.create({ speaker: { alias: "Остров" },
     content: `<div class="isle-chat"><h3>☀ День ${st.day}</h3><p>Погода (к6 = ${roll.total}): <b>${esc(w)}</b></p></div>` });
   await ChatMessage.create({ speaker: { alias: "Остров" }, whisper: ChatMessage.getWhisperRecipients("GM").map((u) => u.id),
@@ -358,8 +376,10 @@ async function revealItem(item) {
   st.revealed = st.revealed.filter((x) => x.key !== item.key).concat([{ key: item.key, name: res.nm, at: item.at, pageId: page.id, noteId: note.id }]);
   const k = hkey(item.at[0], item.at[1]);
   if (!st.explored.includes(k)) st.explored.push(k);
+  logEntry(st, `Найдено: ${res.nm} (${coord(I, item.at[0], item.at[1])}).`, "find");
   await saveState(st);
-  ui.notifications.info(`Игроки узнали: ${res.nm}`);
+  toast({ title: `Находка: ${res.nm}`, sub: coord(I, item.at[0], item.at[1]), color: item.tint || "#7a4a1c", icon: "✦" }, true);
+  pulseHex(item.at[0], item.at[1], item.tint || "#ffd27a");
 }
 
 async function hideItem(key) {
@@ -398,6 +418,8 @@ class IslePanel extends ApplicationV2 {
       const pos = st.lastHex ? st.lastHex.split(",").map(Number) : null;
       body = `<div class="isle-big"><div><b>День ${st.day}</b><span>${st.hours} ч в пути сегодня${st.hours > 8 ? " · перегруз" : ""}</span></div>
           <button data-act="newday">☀ Новый день</button></div>
+        <p><b>Погода на сцене:</b> <select data-weather>${[["", "ясно"], ["rain", "ливень"], ["rainStorm", "шторм"], ["fog", "туман"]]
+          .map(([k, n]) => `<option value="${k}" ${(canvas.scene.weather ?? "") === k ? "selected" : ""}>${n}</option>`).join("")}</select></p>
         <p><b>Токен партии:</b> ${party ? esc(party.name) : "<span class='mute'>не выбран</span>"}${pos ? ` · сейчас ${coord(I, pos[0], pos[1])}` : ""}</p>
         <p><button data-act="party">Выделенный токен — это партия</button></p>
         <p class="mute">Двигай токен партии — в чат (только тебе) придут часы пути, броски встреч и что спрятано в гексе. Соседние гексы откроются для карточек игроков.</p>
@@ -439,6 +461,7 @@ class IslePanel extends ApplicationV2 {
       this.render();
     };
     content.querySelectorAll("[data-act]").forEach((b) => b.onclick = () => act(b.dataset.act));
+    content.querySelector("[data-weather]")?.addEventListener("change", (e) => canvas.scene.update({ weather: e.target.value }));
     content.querySelectorAll("[data-reveal]").forEach((b) => b.onclick = async () => {
       const I = await island(); await revealItem(I.reveal.find((x) => x.key === b.dataset.reveal)); this.render();
     });
@@ -458,6 +481,7 @@ function renderBar() {
   const btns = [];
   if (game.user.isGM) btns.push(`<button data-b="panel" title="Панель острова">🌴 Остров</button>`);
   if (isIsle()) {
+    btns.push(`<button data-b="book" title="Журнал экспедиции: задания, находки, хроника">📜 Журнал</button>`);
     btns.push(`<button data-b="diary" title="Дневник экспедиции">📖 Дневник</button>`);
     btns.push(`<button data-b="pins" title="Показать или спрятать пины на карте">📍 Пины</button>`);
     btns.push(`<button data-b="help" title="Как пользоваться">?</button>`);
@@ -465,6 +489,7 @@ function renderBar() {
   bar.innerHTML = btns.join("");
   document.body.appendChild(bar);
   bar.querySelector("[data-b=panel]")?.addEventListener("click", openPanel);
+  bar.querySelector("[data-b=book]")?.addEventListener("click", () => openBook());
   bar.querySelector("[data-b=diary]")?.addEventListener("click", () => game.journal.get(getState().diaryId)?.sheet.render(true));
   bar.querySelector("[data-b=pins]")?.addEventListener("click", async () => {
     const v = game.settings.get("core", "notesDisplayToggle");
@@ -487,12 +512,16 @@ function onDblClick(ev) {
 }
 
 Hooks.once("init", () => {
-  game.modules.get(MOD).api = { importIsland, openPanel, newDay, liveFit };
+  game.modules.get(MOD).api = { importIsland, openPanel, newDay, liveFit, openBook };
+  game.settings.register(MOD, "fx", { name: "Анимации острова", hint: "Облака, блики на воде, светлячки, подсветка гекса. Выключи, если тормозит.",
+    scope: "client", config: true, type: Boolean, default: true, onChange: () => startFX() });
 });
 
 Hooks.once("ready", () => {
   island();
   game.socket.on(`module.${MOD}`, async (msg) => {
+    if (msg.action === "toast") return toast(msg.data);
+    if (msg.action === "pulse") { if (msg.sceneId === canvas.scene?.id) pingHex(msg.r, msg.c, msg.color); return; }
     if (!activeGM()) return;
     const scene = game.scenes.get(msg.sceneId);
     if (!scene) return;
@@ -503,12 +532,18 @@ Hooks.once("ready", () => {
     }
   });
   document.getElementById("board")?.addEventListener("dblclick", onDblClick);
+  let raf = 0;
+  document.getElementById("board")?.addEventListener("pointermove", (e) => {
+    if (raf || !isIsle()) return;
+    raf = requestAnimationFrame(() => { raf = 0; hoverAt(e.clientX, e.clientY); });
+  });
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeCard(); });
 });
 
-Hooks.on("canvasReady", () => { closeCard(); renderBar(); if (panel?.rendered) panel.render(); setTimeout(liveFit, 300); });
+Hooks.on("canvasReady", () => { closeCard(); renderBar(); if (panel?.rendered) panel.render(); setTimeout(liveFit, 300); startFX(); });
+Hooks.on("canvasTearDown", () => stopFX());
 Hooks.on("updateToken", (doc, changes) => { onTokenMoved(doc, changes); });
 Hooks.on("updateScene", (scene, changes) => {
   if (scene.id !== canvas.scene?.id) return;
-  if (foundry.utils.hasProperty(changes, `flags.${MOD}`)) { renderBar(); if (panel?.rendered) panel.render(); }
+  if (foundry.utils.hasProperty(changes, `flags.${MOD}`)) { renderBar(); if (panel?.rendered) panel.render(); refreshBook(); refreshPools(); }
 });

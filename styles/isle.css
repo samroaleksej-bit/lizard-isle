@@ -1,32 +1,56 @@
-#isle-bar { position: fixed; top: 8px; left: 50%; transform: translateX(-50%); z-index: 70; display: flex; gap: 6px;
-  background: rgba(15,23,19,.85); border: 1px solid #2f7a5b; border-radius: 10px; padding: 5px 6px; box-shadow: 0 4px 16px rgba(0,0,0,.45); }
-#isle-bar button { width: auto; line-height: 26px; padding: 0 10px; background: #1d2a22; color: #e2ebe3; border: 1px solid #3b5a48; border-radius: 7px; cursor: pointer; font-size: 13px; }
-#isle-bar button:hover { background: #2f7a5b; }
-.isle-card { position: fixed; z-index: 80; width: 320px; max-height: 70vh; overflow: auto; background: #16211b; color: #e2ebe3;
-  border: 1px solid #58b88b; border-radius: 10px; padding: 12px 14px 10px; box-shadow: 0 10px 30px rgba(0,0,0,.6); font-size: 14px; line-height: 1.45; }
-.isle-card h3 { margin: 0 0 6px; padding-right: 18px; border: 0; color: #e3a54a; font-size: 16px; }
-.isle-card h4 { margin: 10px 0 4px; font-size: 13px; color: #93a598; text-transform: uppercase; letter-spacing: .06em; border: 0; }
-.isle-card p { margin: 4px 0; } .isle-card ul { margin: 2px 0 0 16px; padding: 0; }
-.isle-card a { color: #5cc3d4; cursor: pointer; } .isle-card a.del { color: #e0646c; }
-.isle-card .mute, .isle-panel .mute, .isle-chat .mute { color: #93a598; }
-.isle-card .isle-x { position: absolute; top: 6px; right: 10px; color: #93a598; }
+/* верхняя панель — кожа и латунь */
+#isle-bar { position: fixed; top: 8px; left: 50%; transform: translateX(-50%); z-index: 70; display: flex; gap: 6px; padding: 6px 8px;
+  background: radial-gradient(120% 120% at 30% 20%, #4c3522, #2a1d12); border: 1px solid #1a110a; border-radius: 12px;
+  box-shadow: 0 6px 18px rgba(0,0,0,.55), inset 0 0 0 2px #3e2b1b, inset 0 0 0 3px rgba(214,168,78,.25); animation: isle-drop .5s cubic-bezier(.2,1.4,.4,1) both; }
+@keyframes isle-drop { from { opacity: 0; transform: translate(-50%, -20px); } }
+#isle-bar button { width: auto; line-height: 28px; padding: 0 12px; cursor: pointer; font-family: "XB Serif", Georgia, serif; font-weight: 700; font-size: 16px;
+  color: #f6e7c4; background: linear-gradient(#6b4528, #4a2f1a); border: 1px solid #2e1d0f; border-radius: 7px;
+  box-shadow: inset 0 1px 0 rgba(255,220,160,.25); transition: all .2s; }
+#isle-bar button:hover { background: linear-gradient(#c48f35, #8f6223); color: #2a1a0c; box-shadow: 0 0 10px rgba(214,168,78,.6); }
+
+/* карточка гекса — записка на пергаменте */
+.isle-card { position: fixed; z-index: 80; width: 330px; max-height: 70vh; overflow: auto; box-sizing: border-box;
+  padding: 16px 18px 12px; color: var(--xb-ink, #3a2414); font-family: "XB Serif", Georgia, serif; font-size: 17px; line-height: 1.35;
+  background: var(--xb-fibers), var(--xb-noise), radial-gradient(140% 100% at 50% 40%, #f3e6c4, #dcc28c); background-blend-mode: multiply, multiply, normal;
+  border-radius: 4px; box-shadow: 0 14px 30px rgba(0,0,0,.6), inset 0 0 30px rgba(120,80,30,.45);
+  transform-origin: top left; animation: isle-card .35s cubic-bezier(.2,1.3,.4,1) both; }
+@keyframes isle-card { from { opacity: 0; transform: scale(.7) rotate(-4deg); } }
+.isle-card h3 { margin: 0 0 6px; padding-right: 20px; border: 0; font-size: 22px; font-weight: 700; color: #3a2414; }
+.isle-card h4 { margin: 10px 0 4px; font-size: 14px; font-weight: 700; color: #6b4a2c; text-transform: uppercase; letter-spacing: .1em; border: 0; }
+.isle-card p { margin: 4px 0; } .isle-card ul { margin: 2px 0 0 18px; padding: 0; }
+.isle-card a { color: #7a2c13; cursor: pointer; } .isle-card a.del { color: #a3242c; }
+.isle-card .mute { color: #7a6045; font-style: italic; }
+.isle-card .isle-x { position: absolute; top: 8px; right: 12px; color: #6b4a2c; font-weight: 700; }
 .isle-chips { display: flex; flex-wrap: wrap; gap: 4px; margin: 4px 0 6px; }
-.isle-chips span { background: #22332a; border: 1px solid #2b3a31; border-radius: 999px; padding: 1px 8px; font-size: 12px; }
-.isle-chips span.gm { border-color: #e0646c; color: #e0646c; }
-.isle-gm { margin-top: 10px; padding-top: 8px; border-top: 1px dashed #3b5a48; }
-.isle-gm button { margin-top: 6px; }
-.isle-hint { margin-top: 10px !important; font-size: 12px; color: #93a598; }
+.isle-chips span { background: rgba(120,80,30,.14); border: 1px solid rgba(120,80,30,.35); border-radius: 999px; padding: 0 9px; font-size: 14px; font-weight: 600; }
+.isle-chips span.gm { border-color: #a3242c; color: #a3242c; }
+.isle-gm { margin-top: 10px; padding: 8px 10px; border: 1px dashed rgba(122,44,19,.55); border-radius: 5px;
+  background: repeating-linear-gradient(-45deg, rgba(122,44,19,.06) 0 8px, transparent 8px 16px); }
+.isle-gm h4 { margin-top: 0; color: #7a2c13; }
+.isle-card button { width: auto; margin-top: 6px; padding: 5px 10px; cursor: pointer; font-family: "XB Serif", serif; font-weight: 700; font-size: 14px;
+  color: #f6e7c4; background: linear-gradient(#6b4528, #4a2f1a); border: 1px solid #2e1d0f; border-radius: 5px; }
+.isle-hint { margin-top: 10px !important; font-family: "XB Hand", cursive; font-size: 17px; color: #2c3f63; }
+
+/* панель мастера */
 .isle-panel .isle-tabs { display: flex; gap: 4px; margin-bottom: 10px; }
 .isle-panel .isle-tabs a { flex: 1; text-align: center; padding: 6px; border-radius: 6px; background: rgba(0,0,0,.15); cursor: pointer; }
-.isle-panel .isle-tabs a.on { background: #2f7a5b; color: #fff; }
+.isle-panel .isle-tabs a.on { background: #8f6223; color: #fff; }
 .isle-panel .isle-body { overflow-y: auto; }
-.isle-panel .isle-big { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px; border-radius: 8px; background: rgba(47,122,91,.15); margin-bottom: 8px; }
+.isle-panel .mute { opacity: .7; }
+.isle-panel .isle-big { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px; border-radius: 8px; background: rgba(196,143,53,.15); margin-bottom: 8px; }
 .isle-panel .isle-big b { font-size: 20px; display: block; } .isle-panel .isle-big button { width: auto; }
 .isle-panel h3 { margin: 12px 0 4px; }
+.isle-panel select { width: auto; }
 .isle-panel .isle-rev { list-style: none; margin: 0; padding: 0; }
 .isle-panel .isle-rev li { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 3px 0; border-bottom: 1px solid rgba(0,0,0,.1); }
 .isle-panel .isle-rev li em { opacity: .6; font-size: 12px; }
-.isle-panel .isle-rev li.open span { color: #2f7a5b; font-weight: 600; }
+.isle-panel .isle-rev li.open span { color: #8f6223; font-weight: 600; }
 .isle-panel .isle-rev button { width: auto; flex: none; line-height: 22px; font-size: 12px; }
 .isle-mks { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
-.isle-chat h3 { margin: 0 0 4px; } .isle-chat ul { margin: 0; padding-left: 16px; } .isle-chat li { margin-bottom: 6px; }
+
+/* сообщения в чате — обрывок пергамента */
+.isle-chat { margin: -2px; padding: 8px 10px; border-radius: 3px; color: #3a2414; font-family: "XB Serif", Georgia, serif; font-size: 15px; line-height: 1.3;
+  background: var(--xb-noise), linear-gradient(#f3e6c4, #e2cc98); background-blend-mode: multiply, normal; box-shadow: inset 0 0 14px rgba(120,80,30,.4); }
+.isle-chat h3 { margin: 0 0 4px; border-bottom: 1px solid rgba(120,80,30,.35); font-size: 18px; font-weight: 700; color: #3a2414; }
+.isle-chat ul { margin: 0; padding-left: 16px; } .isle-chat li { margin-bottom: 6px; }
+.isle-chat .mute { color: #7a6045; }

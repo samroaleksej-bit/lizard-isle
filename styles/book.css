@@ -1,0 +1,203 @@
+/* ===== шрифты ===== */
+@font-face { font-family: "XB Serif"; font-weight: 500; font-style: normal; src: url("../fonts/cormorant-garamond-cyrillic-500-normal.woff2") format("woff2"); unicode-range: U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116; }
+@font-face { font-family: "XB Serif"; font-weight: 500; font-style: normal; src: url("../fonts/cormorant-garamond-latin-500-normal.woff2") format("woff2"); unicode-range: U+0000-00FF,U+2000-206F,U+2190-21FF,U+2600-27BF; }
+@font-face { font-family: "XB Serif"; font-weight: 500; font-style: italic; src: url("../fonts/cormorant-garamond-cyrillic-500-italic.woff2") format("woff2"); }
+@font-face { font-family: "XB Serif"; font-weight: 600; src: url("../fonts/cormorant-garamond-cyrillic-600-normal.woff2") format("woff2"); unicode-range: U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116; }
+@font-face { font-family: "XB Serif"; font-weight: 600; src: url("../fonts/cormorant-garamond-latin-600-normal.woff2") format("woff2"); unicode-range: U+0000-00FF,U+2000-206F; }
+@font-face { font-family: "XB Serif"; font-weight: 700; src: url("../fonts/cormorant-garamond-cyrillic-700-normal.woff2") format("woff2"); unicode-range: U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116; }
+@font-face { font-family: "XB Serif"; font-weight: 700; src: url("../fonts/cormorant-garamond-latin-700-normal.woff2") format("woff2"); unicode-range: U+0000-00FF,U+2000-206F; }
+@font-face { font-family: "XB Hand"; src: url("../fonts/marck-script-cyrillic-400-normal.woff2") format("woff2"); unicode-range: U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116; }
+@font-face { font-family: "XB Hand"; src: url("../fonts/marck-script-latin-400-normal.woff2") format("woff2"); unicode-range: U+0000-00FF,U+2000-206F; }
+
+:root {
+  --xb-ink: #3a2414;
+  --xb-ink2: #6b4a2c;
+  --xb-paper: #ead9b0;
+  --xb-gold: #d6a84e;
+  --xb-leather: #2f2116;
+  --xb-noise: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.35  0 0 0 0 0.22  0 0 0 0 0.1  0 0 0 .55 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  --xb-fibers: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='400'><filter id='f'><feTurbulence type='fractalNoise' baseFrequency='.012 .09' numOctaves='2' seed='4'/><feColorMatrix values='0 0 0 0 0.45  0 0 0 0 0.3  0 0 0 0 0.12  0 0 0 .22 0'/></filter><rect width='100%' height='100%' filter='url(%23f)'/></svg>");
+}
+
+/* ===== окно ===== */
+.xb-app { background: none !important; border: 0 !important; box-shadow: none !important; padding: 0 !important; overflow: visible !important; }
+.xb-app .window-content { padding: 0; overflow: visible; background: none; }
+.xb-book { width: 100%; height: 100%; perspective: 2200px; font-family: "XB Serif", Georgia, serif; color: var(--xb-ink); }
+.xb-book.opening .xb-cover { animation: xb-open .75s cubic-bezier(.2,.8,.2,1) both; }
+.xb-book.closing .xb-cover { animation: xb-close .26s ease-in both; }
+@keyframes xb-open { 0% { opacity: 0; transform: translateY(40px) rotateX(28deg) scale(.82); } 60% { opacity: 1; } 100% { transform: none; } }
+@keyframes xb-close { to { opacity: 0; transform: translateY(24px) rotateX(18deg) scale(.9); } }
+
+/* ===== обложка ===== */
+.xb-cover {
+  position: relative; height: 100%; box-sizing: border-box; padding: 38px 54px 26px 26px; border-radius: 14px 18px 18px 14px;
+  background:
+    var(--xb-noise),
+    radial-gradient(120% 90% at 30% 20%, #4c3522 0%, #2f2116 55%, #1c130c 100%);
+  box-shadow: 0 30px 60px rgba(0,0,0,.65), 0 6px 14px rgba(0,0,0,.5), inset 0 0 0 2px #1a110a, inset 0 0 0 7px #3e2b1b, inset 0 0 40px rgba(0,0,0,.6);
+  cursor: grab;
+}
+.xb-cover::before { /* строчка по краю */
+  content: ""; position: absolute; inset: 11px; border-radius: 10px 14px 14px 10px; border: 2px dashed rgba(214,168,78,.35); pointer-events: none;
+}
+.xb-title {
+  position: absolute; top: 9px; left: 0; right: 30px; text-align: center; font-weight: 700; font-size: 15px; letter-spacing: .32em; text-transform: uppercase;
+  color: var(--xb-gold); text-shadow: 0 1px 0 #000, 0 0 10px rgba(214,168,78,.35); cursor: grab; user-select: none;
+}
+.xb-close {
+  position: absolute; top: 6px; right: 14px; z-index: 5; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; cursor: pointer;
+  color: #2a1a0c; font-size: 13px; font-weight: 700; text-decoration: none;
+  background: radial-gradient(circle at 35% 30%, #f7dc97, #c48f35 55%, #7c561b); box-shadow: 0 2px 4px rgba(0,0,0,.6), inset 0 -2px 3px rgba(0,0,0,.3);
+}
+.xb-close:hover { filter: brightness(1.15); text-shadow: none; }
+.xb-corner { position: absolute; width: 44px; height: 44px; pointer-events: none;
+  background: radial-gradient(circle at 30% 30%, #f7dc97, #c48f35 45%, #6e4b16 80%); opacity: .95;
+  clip-path: polygon(0 0, 100% 0, 100% 22%, 22% 22%, 22% 100%, 0 100%); filter: drop-shadow(0 2px 2px rgba(0,0,0,.6)); }
+.xb-corner.tl { top: 4px; left: 4px; } .xb-corner.tr { top: 4px; right: 4px; transform: scaleX(-1); }
+.xb-corner.bl { bottom: 4px; left: 4px; transform: scaleY(-1); } .xb-corner.br { bottom: 4px; right: 4px; transform: scale(-1); }
+
+/* ===== разворот ===== */
+.xb-spread { position: relative; display: flex; height: 100%; cursor: default; filter: drop-shadow(0 4px 6px rgba(0,0,0,.55)); }
+.xb-page {
+  position: relative; flex: 1; overflow-y: auto; overflow-x: hidden; padding: 26px 34px 26px; box-sizing: border-box; scrollbar-width: thin; scrollbar-color: #b08d57 transparent;
+  background:
+    var(--xb-fibers), var(--xb-noise),
+    radial-gradient(140% 100% at 50% 50%, #f3e6c4 0%, #e6d3a6 60%, #cdb07a 100%);
+  background-blend-mode: multiply, multiply, normal;
+}
+.xb-left { border-radius: 6px 0 0 6px; box-shadow: inset -26px 0 30px -18px rgba(70,40,10,.55), inset 0 0 50px rgba(120,80,30,.35); }
+.xb-right { border-radius: 0 6px 6px 0; box-shadow: inset 26px 0 30px -18px rgba(70,40,10,.55), inset 0 0 50px rgba(120,80,30,.35); perspective: 1600px; }
+.xb-wide { border-radius: 6px; box-shadow: inset 0 0 50px rgba(120,80,30,.35); }
+.xb-gutter { position: absolute; top: 0; bottom: 0; left: 50%; width: 3px; margin-left: -1.5px; background: linear-gradient(#6b4a2c, #3a2414, #6b4a2c); opacity: .55; pointer-events: none; }
+.xb-wide ~ .xb-gutter { opacity: .35; }
+
+.xb-h { margin: 0 0 14px; padding: 0 0 6px; border: 0; font-size: 30px; font-weight: 700; letter-spacing: .04em; color: var(--xb-ink); text-align: center; }
+.xb-h::after { content: "❦"; display: block; font-size: 16px; color: #8a5a2a; margin-top: 2px; }
+.xb-page h4 { margin: 14px 0 6px; border: 0; font-size: 16px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--xb-ink2); display: flex; align-items: center; gap: 8px; }
+.xb-page ul { list-style: none; margin: 0; padding: 0; }
+.xb-page a { color: #7a2c13; cursor: pointer; text-decoration: underline; text-decoration-style: dotted; text-underline-offset: 3px; }
+.xb-page a:hover { color: #a5361a; text-shadow: none; }
+.xb-hand { font-family: "XB Hand", cursive; font-size: 21px; line-height: 1.35; color: #2c3f63; }
+.xb-empty { text-align: center; margin-top: 40px; opacity: .85; }
+.xb-blank { height: 100%; display: grid; place-items: center; font-size: 80px; color: rgba(120,80,30,.25); }
+
+/* список заданий */
+.xb-fac li {
+  position: relative; display: flex; gap: 8px; align-items: baseline; padding: 4px 8px; margin: 1px 0; border-radius: 4px; cursor: pointer;
+  font-size: 19px; font-weight: 600; line-height: 1.2; animation: xb-ink .5s ease both; animation-delay: calc(var(--i) * 45ms);
+}
+.xb-fac li:hover { background: rgba(120,80,30,.12); }
+.xb-fac li.sel { background: rgba(120,80,30,.18); box-shadow: inset 3px 0 0 #7a2c13; }
+.xb-fac li.hidden { opacity: .45; font-style: italic; }
+.xb-fac li.done { color: #3d5a2a; } .xb-fac li.done span:not(.xb-mk) { text-decoration: line-through; }
+.xb-fac li.failed { color: #7a2c13; opacity: .8; }
+.xb-mk { width: 16px; flex: none; text-align: center; color: var(--xb-ink2); }
+@keyframes xb-ink { from { opacity: 0; transform: translateX(-6px); filter: blur(2px); } to { opacity: 1; transform: none; filter: none; } }
+
+/* сургучная печать */
+.xb-seal {
+  flex: none; display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 50%;
+  font-family: "XB Serif", serif; font-weight: 700; font-size: 14px; color: rgba(255,240,210,.85); text-shadow: 0 -1px 0 rgba(0,0,0,.5);
+  background: radial-gradient(circle at 35% 30%, color-mix(in srgb, var(--seal, #8a2a1c) 60%, #fff 40%), var(--seal, #8a2a1c) 50%, color-mix(in srgb, var(--seal, #8a2a1c) 60%, #000 40%));
+  box-shadow: 0 2px 3px rgba(0,0,0,.45), inset 0 0 0 3px color-mix(in srgb, var(--seal, #8a2a1c) 75%, #000 25%);
+  border-radius: 48% 52% 50% 46% / 50% 46% 54% 50%;
+}
+.xb-seal.big { position: absolute; top: 4px; right: 6px; width: 64px; height: 64px; font-size: 32px; transform: rotate(-8deg); animation: xb-seal .55s cubic-bezier(.3,1.6,.5,1) both .25s; }
+.xb-seal.sm { width: 34px; height: 34px; font-size: 16px; }
+@keyframes xb-seal { from { opacity: 0; transform: translateY(-30px) scale(1.6) rotate(-30deg); } to { opacity: 1; transform: rotate(-8deg); } }
+
+/* правая страница: детали */
+.xb-turn { position: relative; min-height: 100%; transform-origin: left center; }
+.xb-turn.flip { animation: xb-flip .6s cubic-bezier(.25,.8,.25,1) both; }
+.xb-turn.flip::after { content: ""; position: absolute; inset: -26px -34px; pointer-events: none; animation: xb-shade .6s ease both;
+  background: linear-gradient(90deg, rgba(60,30,5,.45), transparent 60%); }
+@keyframes xb-flip { 0% { transform: rotateY(-75deg); opacity: 0; } 55% { opacity: 1; } 100% { transform: none; } }
+@keyframes xb-shade { from { opacity: 1; } to { opacity: 0; } }
+.xb-detail { position: relative; padding-top: 6px; }
+.xb-detail h2 { margin: 0 70px 2px 0; border: 0; font-size: 30px; font-weight: 700; line-height: 1.05; color: var(--xb-ink); }
+.xb-meta { font-style: italic; font-size: 17px; color: var(--xb-ink2); }
+.xb-rule { height: 10px; margin: 12px 0 10px; background: radial-gradient(circle, #8a5a2a 0 2px, transparent 3px) center/14px 10px repeat-x; opacity: .55; }
+.xb-loc { font-size: 17px; margin-top: 10px; }
+.xb-text { font-size: 18px; line-height: 1.45; }
+.xb-text p { margin: 0 0 8px; }
+
+/* штамп */
+.xb-stamp {
+  display: inline-block; margin: 16px 0 6px 40px; padding: 4px 16px; font-weight: 700; font-size: 30px; letter-spacing: .18em;
+  border: 4px double currentColor; border-radius: 6px; transform: rotate(-11deg); opacity: .82; mix-blend-mode: multiply;
+  -webkit-mask-image: var(--xb-noise), linear-gradient(#000, #000); -webkit-mask-composite: source-out; mask-composite: exclude;
+  animation: xb-stamp .45s cubic-bezier(.2,1.8,.4,1) both .2s;
+}
+.xb-stamp.done { color: #2d6a2d; } .xb-stamp.failed { color: #a3242c; }
+@keyframes xb-stamp { 0% { opacity: 0; transform: scale(2.6) rotate(-25deg); } 70% { opacity: .9; } 100% { transform: rotate(-11deg); } }
+
+/* блок мастера */
+.xb-gm { margin-top: 18px; padding: 10px 14px; border-radius: 6px; font-size: 16.5px; line-height: 1.35;
+  background: repeating-linear-gradient(-45deg, rgba(122,44,19,.06) 0 8px, transparent 8px 16px); border: 1px dashed rgba(122,44,19,.55); }
+.xb-gm h4 { margin: 0 0 6px; color: #7a2c13; }
+.xb-gm p { margin: 0 0 6px; }
+.xb-btns, .xb-pm { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.xb-book button {
+  width: auto; flex: none; line-height: 1; padding: 6px 12px; border-radius: 5px; cursor: pointer; font-family: "XB Serif", serif; font-weight: 700; font-size: 15px;
+  color: #f6e7c4; background: linear-gradient(#6b4528, #4a2f1a); border: 1px solid #2e1d0f; box-shadow: inset 0 1px 0 rgba(255,220,160,.25), 0 1px 2px rgba(0,0,0,.4);
+}
+.xb-book button:hover { background: linear-gradient(#80552f, #573821); box-shadow: inset 0 1px 0 rgba(255,220,160,.3), 0 0 6px rgba(214,168,78,.5); }
+.xb-book button.on { background: linear-gradient(#c48f35, #8f6223); color: #2a1a0c; }
+
+/* хроника */
+.xb-cols { column-count: 2; column-gap: 68px; column-fill: auto; height: calc(100% - 70px); }
+.xb-day { break-inside: avoid-column; margin-bottom: 12px; }
+.xb-day h3 { margin: 0 0 4px; border: 0; font-size: 22px; font-weight: 700; color: var(--xb-ink); }
+.xb-day h3::before { content: "✦ "; color: #8a5a2a; font-size: 14px; vertical-align: middle; }
+.xb-day li { font-family: "XB Hand", cursive; font-size: 19px; line-height: 1.3; color: #2c3f63; padding-left: 14px; text-indent: -14px; }
+.xb-day li::before { content: "— "; color: var(--xb-ink2); }
+.xb-day li.k-quest, .xb-day li.k-find { color: #6b2c13; }
+.xb-day li.k-done, .xb-day li.k-up { color: #2d5a2d; }
+.xb-day li.k-fail, .xb-day li.k-down { color: #8a2a1c; }
+
+/* фракции */
+.xb-rep { position: relative; display: flex; gap: 12px; align-items: flex-start; padding: 10px 6px; border-bottom: 1px solid rgba(120,80,30,.25); }
+.xb-rep .xb-seal { width: 42px; height: 42px; font-size: 22px; }
+.xb-rep b { font-size: 21px; display: block; }
+.xb-rep em { font-size: 15px; color: var(--xb-ink2); display: block; }
+.xb-pips { display: flex; gap: 5px; margin: 6px 0 2px; }
+.xb-pips i { width: 15px; height: 15px; border-radius: 50%; border: 2px solid rgba(90,60,30,.55); transition: all .3s; }
+.xb-pips i.zero { border-radius: 3px; transform: rotate(45deg) scale(.85); }
+.xb-pips i.on { background: radial-gradient(circle at 35% 30%, #fff6, var(--seal)); border-color: var(--seal); box-shadow: 0 0 6px var(--seal); }
+.xb-pips i.on.neg { background: radial-gradient(circle at 35% 30%, #fff6, #8a2a1c); border-color: #8a2a1c; box-shadow: 0 0 6px #8a2a1c; }
+.xb-rept { font-family: "XB Hand", cursive; font-size: 19px; color: #2c3f63; }
+.xb-rep .xb-pm { position: absolute; right: 4px; top: 12px; margin: 0; }
+.xb-rep .xb-pm button { padding: 4px 9px; }
+.xb-legend { display: grid; grid-template-columns: 1fr 1fr; gap: 3px 16px; margin-top: 14px; font-size: 16px; color: var(--xb-ink2); }
+
+/* закладки-ленты */
+.xb-ribbons { position: absolute; right: 6px; top: 70px; display: flex; flex-direction: column; gap: 8px; z-index: 4; }
+.xb-rib {
+  position: relative; display: block; width: 40px; padding: 14px 0 22px; cursor: pointer; text-decoration: none !important;
+  writing-mode: vertical-rl; text-align: center; font-family: "XB Serif", serif; font-weight: 700; font-size: 15px; letter-spacing: .14em; text-transform: uppercase; color: #fbeccb !important;
+  background: var(--rib); clip-path: polygon(0 0, 100% 0, 100% 100%, 50% calc(100% - 12px), 0 100%);
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,.2); transform: translateX(-10px); transition: transform .25s, filter .25s; filter: brightness(.85) saturate(.9);
+}
+.xb-rib span { display: inline-block; text-shadow: 0 1px 1px rgba(0,0,0,.5); }
+.xb-rib:hover { transform: translateX(-4px); filter: none; }
+.xb-rib.on { transform: translateX(0); filter: brightness(1.08); }
+.xb-rib.r0 { --rib: linear-gradient(90deg, #6e1d18, #9c2a22 50%, #6e1d18); }
+.xb-rib.r1 { --rib: linear-gradient(90deg, #1f4a33, #2f6e4b 50%, #1f4a33); }
+.xb-rib.r2 { --rib: linear-gradient(90deg, #1d3550, #2c5079 50%, #1d3550); }
+.xb-rib.r3 { --rib: linear-gradient(90deg, #6a4a12, #a7782a 50%, #6a4a12); }
+
+/* ===== свиток-уведомление ===== */
+.xb-toast { position: fixed; top: 64px; left: 50%; transform: translateX(-50%); z-index: 200; display: flex; align-items: stretch; pointer-events: none;
+  filter: drop-shadow(0 10px 18px rgba(0,0,0,.55)); font-family: "XB Serif", Georgia, serif; }
+.xb-toast .xb-roll { width: 18px; border-radius: 9px; background: linear-gradient(90deg, #4a2f1a, #9b6c3c 40%, #5b3a1f); z-index: 2; margin: -6px 0; box-shadow: inset 0 0 0 1px #2e1d0f; }
+.xb-toast .xb-paper {
+  display: flex; align-items: center; gap: 12px; padding: 10px 22px; overflow: hidden; white-space: nowrap; color: var(--xb-ink);
+  background: var(--xb-fibers), var(--xb-noise), linear-gradient(#f3e6c4, #e2cc98); background-blend-mode: multiply, multiply, normal;
+  animation: xb-unroll .8s cubic-bezier(.3,.9,.3,1) both; max-width: 560px;
+}
+.xb-toast .xb-paper > * { animation: xb-ink .5s ease both .55s; }
+.xb-toast b { display: block; font-size: 22px; font-weight: 700; }
+.xb-toast em { display: block; font-size: 16px; color: var(--xb-ink2); }
+.xb-toast.out { animation: xb-toastout .7s ease-in both; }
+@keyframes xb-unroll { from { max-width: 0; padding-left: 0; padding-right: 0; } to { max-width: 560px; } }
+@keyframes xb-toastout { to { opacity: 0; transform: translate(-50%, -30px); } }
