@@ -1,6 +1,6 @@
 // Живая карта: тени облаков, блики на море, светлячки и споры над джунглями, подсветка гекса под курсором,
 // свечение вокруг партии, волны-пинги при открытиях.
-import { MOD, island, getState, isIsle } from "./isle.js";
+import { MOD, island, getState, isIsle, hexCenter, hexRadius, hexVerts, hexAt } from "./isle.js";
 
 const FX = { root: null, tick: null, clouds: [], glints: [], motes: [], pings: [], hover: null, aura: null, hoverKey: null, t: 0 };
 const LAND_MOTES = { j: 0xc8ff6a, c: 0xc8ff6a, d: 0xa6e05a, g: 0xd9ffa0, T: 0xe8b6ff, s: 0x9cff9c, f: 0xff9ad0, u: 0xffe08a };
@@ -47,9 +47,9 @@ function textures() {
 }
 function mulberry(a) { return () => { a |= 0; a = (a + 0x6d2b79f5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
 
-function hexR() { return (canvas.grid.sizeX ?? canvas.grid.size) / Math.sqrt(3); }
+const hexR = () => hexRadius();
 function randIn(r, c) {
-  const p = canvas.grid.getCenterPoint({ i: r, j: c });
+  const p = hexCenter(r, c);
   const a = Math.random() * Math.PI * 2, d = Math.sqrt(Math.random()) * hexR() * 0.8;
   return { x: p.x + Math.cos(a) * d, y: p.y + Math.sin(a) * d };
 }
@@ -95,7 +95,7 @@ async function _startFX() {
     root.addChild(s); FX.clouds.push(s);
   }
   // блики на воде
-  const sz = canvas.grid.sizeX ?? canvas.grid.size;
+  const sz = hexR() * Math.sqrt(3);
   for (let k = 0; k < Math.min(170, pools.sea.length * 2); k++) {
     const s = new PIXI.Sprite(T.star);
     s.anchor.set(0.5); s.blendMode = PIXI.BLEND_MODES.ADD; s.alpha = 0;
@@ -196,18 +196,14 @@ export async function refreshPools() { if (FX.root) await buildPools(); }
 export function hoverAt(clientX, clientY) {
   if (!FX.root || !ISL()) return;
   const p = canvas.canvasCoordinatesFromClient({ x: clientX, y: clientY });
-  const o = canvas.grid.getOffset(p);
+  const h = hexAt(p);
+  const o = { i: h.r, j: h.c };
   const key = `${o.i},${o.j}`;
   if (key === FX.hoverKey) return;
   FX.hoverKey = key;
   const I = ISL();
   if (o.i < 0 || o.j < 0 || o.i >= I.RAW.length || o.j >= I.RAW[0].length) { FX.hoverPoly = null; FX.hover?.clear(); return; }
-  let verts;
-  try { verts = canvas.grid.getVertices({ i: o.i, j: o.j }); } catch (e) { verts = null; }
-  if (!verts?.length) {
-    const c = canvas.grid.getCenterPoint({ i: o.i, j: o.j }), r = hexR();
-    verts = [...Array(6)].map((_, k) => ({ x: c.x + r * Math.cos((60 * k - 30) * Math.PI / 180), y: c.y + r * Math.sin((60 * k - 30) * Math.PI / 180) }));
-  }
+  const verts = hexVerts(o.i, o.j);
   FX.hoverPoly = verts.flatMap((v) => [v.x, v.y]);
 }
 let _isl = null;
@@ -216,7 +212,7 @@ const ISL = () => _isl;
 /* волна-пинг на гексе */
 export function pingHex(r, c, color = "#ffd27a") {
   if (!FX.root) return;
-  const p = canvas.grid.getCenterPoint({ i: r, j: c });
+  const p = hexCenter(r, c);
   const g = new PIXI.Graphics(); FX.root.addChild(g);
   FX.pings.push({ g, x: p.x, y: p.y, age: 0, color: Number(String(color).replace("#", "0x")) || 0xffd27a });
 }

@@ -1,5 +1,5 @@
 // Полевой журнал экспедиции: задания фракций, находки, хроника, отношения с фракциями.
-import { MOD, island, getState, saveState, esc, coord, isIsle, openDiaryPage, pulseHex } from "./isle.js";
+import { MOD, island, getState, saveState, esc, coord, isIsle, openDiaryPage, pulseHex, hexCenter } from "./isle.js";
 
 export const STATUS = {
   active: { n: "Взято", mark: "✒", stamp: "" },
@@ -43,7 +43,7 @@ export function bookHTML(I, st, view, isGM) {
       if (!qs.length) return "";
       return `<div class="xb-fac"><h4><span class="xb-seal" style="--seal:${f.color}">${esc(f.n[0])}</span>${esc(f.n)}</h4><ul>${qs.map((q, i) => {
         const s = quests[q.id];
-        return `<li data-q="${q.id}" class="${s ?? "hidden"} ${sel?.id === q.id ? "sel" : ""}" style="--i:${i}"><span class="xb-mk">${s ? STATUS[s].mark : "◇"}</span>${esc(q.n)}</li>`;
+        return `<li data-q="${q.id}" class="${s ?? "q-hidden"} ${sel?.id === q.id ? "sel" : ""}" style="--i:${i}"><span class="xb-mk">${s ? STATUS[s].mark : "◇"}</span>${esc(q.n)}</li>`;
       }).join("")}</ul></div>`;
     }).join("");
     left = `<h2 class="xb-h">Задания</h2>${groups || `<p class="xb-hand xb-empty">Пока никто на острове не доверил вам дел.</p>`}`;
@@ -191,7 +191,7 @@ export function openBook(tab) {
 export function refreshBook() { if (book?.rendered) book.render(); }
 
 function panTo(r, c) {
-  const p = canvas.grid.getCenterPoint({ i: r, j: c });
+  const p = hexCenter(r, c);
   canvas.animatePan({ x: p.x, y: p.y, scale: Math.max(canvas.stage.scale.x, 0.7), duration: 900 });
   pulseHex(r, c, "#ffd27a", false);
 }

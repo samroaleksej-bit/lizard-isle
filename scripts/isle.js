@@ -38,10 +38,48 @@ export function pulseHex(r, c, color = "#ffd27a", broadcast = true) {
   if (broadcast) game.socket.emit(`module.${MOD}`, { action: "pulse", sceneId: canvas.scene?.id, r, c, color });
 }
 
-/* ---------------- гексы ---------------- */
-function hexAt(point) {
-  const o = canvas.grid.getOffset(point);
-  return { r: o.i, c: o.j };
+/* ---------------- гексы: своя геометрия по картинке ----------------
+   Карта нарисована под гексы с острой вершиной: ширина гекса W = 140 px картинки, нечётные ряды сдвинуты на W/2.
+   Сетку Foundry не используем (сцена без сетки) — так карта и логика всегда совпадают. */
+const GW = 140, GR = GW / Math.sqrt(3), IMG_W = 3990, IMG_H = 2587;
+function frame() {
+  const d = canvas.dimensions;
+  const R = d?.sceneRect ?? { x: d?.sceneX ?? 0, y: d?.sceneY ?? 0, width: d?.sceneWidth ?? IMG_W, height: d?.sceneHeight ?? IMG_H };
+  return { x: R.x, y: R.y, k: R.width / IMG_W, ky: R.height / IMG_H };
+}
+export function hexCenter(r, c) {
+  const f = frame();
+  return { x: f.x + (c * GW + GW / 2 + (r % 2 ? GW / 2 : 0)) * f.k, y: f.y + (GR + r * 1.5 * GR) * f.ky };
+}
+export function hexRadius() { return GR * frame().k; }
+export function hexVerts(r, c) {
+  const p = hexCenter(r, c), f = frame();
+  return [...Array(6)].map((_, i) => ({ x: p.x + GR * f.k * Math.cos((60 * i - 30) * Math.PI / 180), y: p.y + GR * f.ky * Math.sin((60 * i - 30) * Math.PI / 180) }));
+}
+export function hexAt(point) {
+  const f = frame();
+  const x = (point.x - f.x) / f.k, y = (point.y - f.y) / f.ky;
+  const r0 = Math.round((y - GR) / (1.5 * GR));
+  let best = { r: r0, c: 0 }, bd = Infinity;
+  for (let r = r0 - 1; r <= r0 + 1; r++) {
+    const c0 = Math.round((x - GW / 2 - (r % 2 ? GW / 2 : 0)) / GW);
+    for (let c = c0 - 1; c <= c0 + 1; c++) {
+      const cx = c * GW + GW / 2 + (Math.abs(r) % 2 ? GW / 2 : 0), cy = GR + r * 1.5 * GR;
+      const d = (cx - x) ** 2 + (cy - y) ** 2;
+      if (d < bd) { bd = d; best = { r, c }; }
+    }
+  }
+  return best;
+}
+function hexLine(fr, fc, tr, tc) {
+  const a = hexCenter(fr, fc), b = hexCenter(tr, tc);
+  const n = Math.max(1, Math.ceil(Math.hypot(b.x - a.x, b.y - a.y) / (hexRadius() * 0.5)));
+  const out = [];
+  for (let i = 0; i <= n; i++) {
+    const h = hexAt({ x: a.x + (b.x - a.x) * i / n, y: a.y + (b.y - a.y) * i / n });
+    if (!out.length || out.at(-1)[0] !== h.r || out.at(-1)[1] !== h.c) out.push([h.r, h.c]);
+  }
+  return out;
 }
 function inMap(I, r, c) {
   return r >= 0 && r < I.RAW.length && c >= 0 && c < I.RAW[0].length;
@@ -49,8 +87,8 @@ function inMap(I, r, c) {
 export const hkey = (r, c) => `${r},${c}`;
 export const coord = (I, r, c) => `${I.ROWS[r]}-${c + 1}`;
 function neighbors(r, c) {
-  try { return canvas.grid.getAdjacentOffsets({ i: r, j: c }).map((o) => [o.i, o.j]); }
-  catch (e) { return []; }
+  const odd = r % 2 ? 1 : 0;
+  return [[r, c - 1], [r, c + 1], [r - 1, c - 1 + odd], [r - 1, c + odd], [r + 1, c - 1 + odd], [r + 1, c + odd]];
 }
 function chanceText(t) {
   return t.d === 0 ? "встреч нет" : t.d === 1 ? "встреча на 1 из к6" : "встреча на 1–2 из к6";
@@ -60,53 +98,7 @@ function chanceText(t) {
 /* Подгонка карты под сетку. Картинка нарисована так: центр гекса (ряд 0, столбец 0) в (W/2, R),
    шаг по столбцам W, по рядам 1.5R, нечётные ряды сдвинуты на W/2. Меряем, как Foundry реально
    ставит центры гексов, и кладём карту тайлом с нужным масштабом и сдвигом. */
-async function fitMap(scene, S) {
-  // при импорте карта ставится как есть (масштаб 1, без сдвига); точная подгонка — liveFit() по живой сетке на экране
-  const tf = { sx: 1, sy: 1, ox: 0, oy: 0 };
-  const tile = { x: 0, y: 0, width: S.width, height: S.height,
-    texture: { src: `${ROOT}/assets/island-map-hd.webp` }, locked: true, sort: -100000, flags: { [MOD]: { map: true } } };
-  const ex = scene.tiles.find((t) => t.getFlag(MOD, "map"));
-  if (ex) await ex.update(tile);
-  else await scene.createEmbeddedDocuments("Tile", [tile]);
-  await scene.setFlag(MOD, "fit", tf);
-  return tf;
-}
-
-/* Подгонка по живой сетке canvas.grid — той же, по которой Foundry рисует гексы и по которой модуль
-   определяет гекс под курсором. Картинка: центр гекса (0,0) в (W/2, R), шаг W по столбцам, 1.5R по рядам. */
-let fitting = false;
-async function liveFit() {
-  if (fitting || !game.user.isGM || !activeGM() || !isIsle() || !canvas?.ready) return;
-  const scene = canvas.scene;
-  const C = await content();
-  const S = C.scene;
-  const W = S.gridSize, R = W / Math.sqrt(3), lastR = 20, lastC = 27;
-  const g = canvas.grid;
-  const a = g.getCenterPoint({ i: 0, j: 0 });
-  const b = g.getCenterPoint({ i: 0, j: lastC });
-  const c = g.getCenterPoint({ i: lastR, j: 0 });
-  const d = g.getCenterPoint({ i: 1, j: 0 });
-  const sx = (b.x - a.x) / (lastC * W), sy = (c.y - a.y) / (lastR * 1.5 * R);
-  const tf = { sx, sy, ox: a.x - (W / 2) * sx, oy: a.y - R * sy };
-  console.log(`${MOD} | fit`, { a, b, c, d, tf, dims: canvas.dimensions, grid: { type: g.type, size: g.size, sizeX: g.sizeX, sizeY: g.sizeY } });
-  if (!(sx > 0.2 && sx < 5 && sy > 0.2 && sy < 5)) return ui.notifications.error("Остров: странная сетка, подгонка отменена. Скинь Claude консоль (F12).");
-  if (d.x - a.x < 0) ui.notifications.warn("Остров: нечётные ряды сетки сдвинуты не в ту сторону. Поставь в сцене «Шестигранники, нечётные ряды».");
-  const old = scene.getFlag(MOD, "fit") ?? { sx: 1, sy: 1, ox: 0, oy: 0 };
-  const tile = scene.tiles.find((t) => t.getFlag(MOD, "map"));
-  const want = { x: Math.round(tf.ox), y: Math.round(tf.oy), width: Math.round(S.width * sx), height: Math.round(S.height * sy) };
-  const same = tile && Math.abs(tile.x - want.x) < 2 && Math.abs(tile.y - want.y) < 2 && Math.abs(tile.width - want.width) < 2 && Math.abs(tile.height - want.height) < 2;
-  if (same) return;
-  fitting = true;
-  try {
-    if (tile) await tile.update(want);
-    // пины мастера и игроков переезжают вместе с картой
-    const move = (x, y) => ({ x: Math.round(tf.ox + ((x - old.ox) / old.sx) * sx), y: Math.round(tf.oy + ((y - old.oy) / old.sy) * sy) });
-    const upd = scene.notes.filter((n) => n.getFlag(MOD, "gm")).map((n) => ({ _id: n.id, ...move(n.x, n.y) }));
-    if (upd.length) await scene.updateEmbeddedDocuments("Note", upd);
-    await scene.setFlag(MOD, "fit", tf);
-    ui.notifications.info("Остров: карта подогнана под сетку.");
-  } finally { fitting = false; }
-}
+async function liveFit() { /* больше не нужно: сцена без сетки, карта — фон */ }
 
 async function importIsland() {
   if (!game.user.isGM) return;
@@ -146,9 +138,9 @@ async function importIsland() {
   });
   const sceneData = {
     name: S.name, folder: sFolder.id, navigation: true,
-    background: { src: null }, width: S.width, height: S.height, padding: 0,
+    background: { src: `${ROOT}/assets/island-map-hd.webp` }, width: S.width, height: S.height, padding: 0,
     backgroundColor: "#173a49",
-    grid: { type: CONST.GRID_TYPES.HEXODDR, size: S.gridSize, distance: 1, units: "гекс", color: "#000000", alpha: 0.22, thickness: 1 },
+    grid: { type: CONST.GRID_TYPES.GRIDLESS, size: S.gridSize, distance: 1, units: "гекс", alpha: 0 },
     tokenVision: true, fog: { exploration: true },
     environment: { globalLight: { enabled: true }, darknessLevel: 0 },
     initial: { x: Math.round(S.start[0]), y: Math.round(S.start[1]), scale: 0.6 },
@@ -157,9 +149,13 @@ async function importIsland() {
   let scene = game.scenes.find((s) => s.getFlag(MOD, "isle")) ?? game.scenes.find((s) => s.name === S.name);
   if (scene) await scene.update(sceneData);
   else scene = await Scene.create(sceneData);
-  // карта кладётся тайлом точно по сетке Foundry, пины — по тем же координатам
-  const tf = await fitMap(scene, S);
-  const placed = notes.map(({ _x, _y, ...n }) => ({ ...n, x: Math.round(tf.ox + _x * tf.sx), y: Math.round(tf.oy + _y * tf.sy) }));
+  // старый тайл карты из прошлых версий больше не нужен
+  const oldTiles = scene.tiles.filter((t) => t.getFlag(MOD, "map")).map((t) => t.id);
+  if (oldTiles.length) await scene.deleteEmbeddedDocuments("Tile", oldTiles);
+  const d = scene.dimensions ?? {};
+  const ox = d.sceneX ?? d.sceneRect?.x ?? 0, oy = d.sceneY ?? d.sceneRect?.y ?? 0;
+  const tf = { ox, oy, sx: 1, sy: 1 };
+  const placed = notes.map(({ _x, _y, ...n }) => ({ ...n, x: Math.round(tf.ox + _x), y: Math.round(tf.oy + _y) }));
   const old = scene.notes.filter((n) => n.getFlag(MOD, "gm")).map((n) => n.id);
   if (old.length) await scene.deleteEmbeddedDocuments("Note", old);
   await scene.createEmbeddedDocuments("Note", placed);
@@ -169,7 +165,6 @@ async function importIsland() {
   if (!st.explored.length) st.explored = ["18,14", "18,15", "17,14", "17,15", "19,14", "19,15", "18,13", "18,16"];
   await saveState(st, scene);
   await scene.view();
-  setTimeout(liveFit, 1500);
   ui.notifications.info(`Остров готов: ${C.journals.length} журналов, ${notes.length} пинов мастера.`);
 }
 
@@ -279,8 +274,8 @@ async function onTokenMoved(doc, changes) {
   const st = getState(doc.parent);
   if (st.party !== doc.id) return;
   const I = await island();
-  const gx = canvas.grid.sizeX ?? canvas.grid.size, gy = canvas.grid.sizeY ?? canvas.grid.size;
-  const center = { x: (changes.x ?? doc.x) + (doc.width * gx) / 2, y: (changes.y ?? doc.y) + (doc.height * gy) / 2 };
+  const gs = canvas.dimensions?.size ?? canvas.grid.size;
+  const center = { x: (changes.x ?? doc.x) + (doc.width * gs) / 2, y: (changes.y ?? doc.y) + (doc.height * gs) / 2 };
   const to = hexAt(center);
   if (!inMap(I, to.r, to.c)) return;
   const toKey = hkey(to.r, to.c);
@@ -290,10 +285,7 @@ async function onTokenMoved(doc, changes) {
   let path = [[to.r, to.c]];
   if (st.lastHex) {
     const [fr, fc] = st.lastHex.split(",").map(Number);
-    try {
-      const pts = canvas.grid.getDirectPath([{ i: fr, j: fc }, { i: to.r, j: to.c }]);
-      path = pts.map((o) => [o.i, o.j]).slice(1);
-    } catch (e) { /* только конечный гекс */ }
+    path = hexLine(fr, fc, to.r, to.c).slice(1);
   }
 
   const lines = [];
@@ -369,7 +361,7 @@ async function revealItem(item) {
   const I = await island();
   const [page] = await diary.createEmbeddedDocuments("JournalEntryPage", [{ name: res.nm, type: "text", title: { show: true, level: 1 },
     text: { format: 1, content: `<p><em>${coord(I, item.at[0], item.at[1])} · День ${st.day}</em></p>${res.tx ? `<p>${esc(res.tx).replace(/\n/g, "<br>")}</p>` : ""}` } }]);
-  const center = canvas.grid.getCenterPoint({ i: item.at[0], j: item.at[1] });
+  const center = hexCenter(item.at[0], item.at[1]);
   const [note] = await canvas.scene.createEmbeddedDocuments("Note", [{ entryId: diary.id, pageId: page.id, x: Math.round(center.x), y: Math.round(center.y + 18),
     text: res.nm, texture: { src: item.icon, tint: item.tint }, iconSize: 44, fontSize: 22, textAnchor: CONST.TEXT_ANCHOR_POINTS.BOTTOM,
     global: true, flags: { [MOD]: { player: true, key: item.key } } }]);
@@ -540,7 +532,7 @@ Hooks.once("ready", () => {
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeCard(); });
 });
 
-Hooks.on("canvasReady", () => { closeCard(); renderBar(); if (panel?.rendered) panel.render(); setTimeout(liveFit, 300); startFX(); });
+Hooks.on("canvasReady", () => { closeCard(); renderBar(); if (panel?.rendered) panel.render(); startFX(); });
 Hooks.on("canvasTearDown", () => stopFX());
 Hooks.on("updateToken", (doc, changes) => { onTokenMoved(doc, changes); });
 Hooks.on("updateScene", (scene, changes) => {

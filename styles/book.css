@@ -22,7 +22,7 @@
 /* ===== окно ===== */
 .xb-app { background: none !important; border: 0 !important; box-shadow: none !important; padding: 0 !important; overflow: visible !important; }
 .xb-app .window-content { padding: 0; overflow: visible; background: none; }
-.xb-book { width: 100%; height: 100%; perspective: 2200px; font-family: "XB Serif", Georgia, serif; color: var(--xb-ink); }
+.xb-book { width: min(1000px, calc(100vw - 40px)); height: min(660px, calc(100vh - 40px)); perspective: 2200px; font-family: "XB Serif", Georgia, serif; color: var(--xb-ink); }
 .xb-book.opening .xb-cover { animation: xb-open .75s cubic-bezier(.2,.8,.2,1) both; }
 .xb-book.closing .xb-cover { animation: xb-close .26s ease-in both; }
 @keyframes xb-open { 0% { opacity: 0; transform: translateY(40px) rotateX(28deg) scale(.82); } 60% { opacity: 1; } 100% { transform: none; } }
@@ -88,7 +88,7 @@
 }
 .xb-fac li:hover { background: rgba(120,80,30,.12); }
 .xb-fac li.sel { background: rgba(120,80,30,.18); box-shadow: inset 3px 0 0 #7a2c13; }
-.xb-fac li.hidden { opacity: .45; font-style: italic; }
+.xb-fac li.q-hidden { opacity: .45; font-style: italic; }
 .xb-fac li.done { color: #3d5a2a; } .xb-fac li.done span:not(.xb-mk) { text-decoration: line-through; }
 .xb-fac li.failed { color: #7a2c13; opacity: .8; }
 .xb-mk { width: 16px; flex: none; text-align: center; color: var(--xb-ink2); }
