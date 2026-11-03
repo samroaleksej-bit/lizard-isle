@@ -1,0 +1,32 @@
+#isle-bar { position: fixed; top: 8px; left: 50%; transform: translateX(-50%); z-index: 70; display: flex; gap: 6px;
+  background: rgba(15,23,19,.85); border: 1px solid #2f7a5b; border-radius: 10px; padding: 5px 6px; box-shadow: 0 4px 16px rgba(0,0,0,.45); }
+#isle-bar button { width: auto; line-height: 26px; padding: 0 10px; background: #1d2a22; color: #e2ebe3; border: 1px solid #3b5a48; border-radius: 7px; cursor: pointer; font-size: 13px; }
+#isle-bar button:hover { background: #2f7a5b; }
+.isle-card { position: fixed; z-index: 80; width: 320px; max-height: 70vh; overflow: auto; background: #16211b; color: #e2ebe3;
+  border: 1px solid #58b88b; border-radius: 10px; padding: 12px 14px 10px; box-shadow: 0 10px 30px rgba(0,0,0,.6); font-size: 14px; line-height: 1.45; }
+.isle-card h3 { margin: 0 0 6px; padding-right: 18px; border: 0; color: #e3a54a; font-size: 16px; }
+.isle-card h4 { margin: 10px 0 4px; font-size: 13px; color: #93a598; text-transform: uppercase; letter-spacing: .06em; border: 0; }
+.isle-card p { margin: 4px 0; } .isle-card ul { margin: 2px 0 0 16px; padding: 0; }
+.isle-card a { color: #5cc3d4; cursor: pointer; } .isle-card a.del { color: #e0646c; }
+.isle-card .mute, .isle-panel .mute, .isle-chat .mute { color: #93a598; }
+.isle-card .isle-x { position: absolute; top: 6px; right: 10px; color: #93a598; }
+.isle-chips { display: flex; flex-wrap: wrap; gap: 4px; margin: 4px 0 6px; }
+.isle-chips span { background: #22332a; border: 1px solid #2b3a31; border-radius: 999px; padding: 1px 8px; font-size: 12px; }
+.isle-chips span.gm { border-color: #e0646c; color: #e0646c; }
+.isle-gm { margin-top: 10px; padding-top: 8px; border-top: 1px dashed #3b5a48; }
+.isle-gm button { margin-top: 6px; }
+.isle-hint { margin-top: 10px !important; font-size: 12px; color: #93a598; }
+.isle-panel .isle-tabs { display: flex; gap: 4px; margin-bottom: 10px; }
+.isle-panel .isle-tabs a { flex: 1; text-align: center; padding: 6px; border-radius: 6px; background: rgba(0,0,0,.15); cursor: pointer; }
+.isle-panel .isle-tabs a.on { background: #2f7a5b; color: #fff; }
+.isle-panel .isle-body { overflow-y: auto; }
+.isle-panel .isle-big { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px; border-radius: 8px; background: rgba(47,122,91,.15); margin-bottom: 8px; }
+.isle-panel .isle-big b { font-size: 20px; display: block; } .isle-panel .isle-big button { width: auto; }
+.isle-panel h3 { margin: 12px 0 4px; }
+.isle-panel .isle-rev { list-style: none; margin: 0; padding: 0; }
+.isle-panel .isle-rev li { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 3px 0; border-bottom: 1px solid rgba(0,0,0,.1); }
+.isle-panel .isle-rev li em { opacity: .6; font-size: 12px; }
+.isle-panel .isle-rev li.open span { color: #2f7a5b; font-weight: 600; }
+.isle-panel .isle-rev button { width: auto; flex: none; line-height: 22px; font-size: 12px; }
+.isle-mks { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+.isle-chat h3 { margin: 0 0 4px; } .isle-chat ul { margin: 0; padding-left: 16px; } .isle-chat li { margin-bottom: 6px; }
