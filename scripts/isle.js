@@ -86,7 +86,7 @@ async function importIsland() {
   });
   const sceneData = {
     name: S.name, folder: sFolder.id, navigation: true,
-    background: { src: `${ROOT}/assets/island-map.webp` }, width: S.width, height: S.height, padding: 0,
+    background: { src: `${ROOT}/assets/island-map-hd.webp` }, width: S.width, height: S.height, padding: 0,
     backgroundColor: "#173a49",
     grid: { type: CONST.GRID_TYPES.HEXODDR, size: S.gridSize, distance: 1, units: "гекс", color: "#000000", alpha: 0.22, thickness: 1 },
     tokenVision: true, fog: { exploration: true },
