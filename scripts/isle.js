@@ -52,30 +52,51 @@ function chanceText(t) {
    шаг по столбцам W, по рядам 1.5R, нечётные ряды сдвинуты на W/2. Меряем, как Foundry реально
    ставит центры гексов, и кладём карту тайлом с нужным масштабом и сдвигом. */
 async function fitMap(scene, S) {
-  const W = S.gridSize, R = W / Math.sqrt(3);
-  const lastR = 20, lastC = 27;
-  const measure = () => {
-    const g = scene.grid;
-    const a = g.getCenterPoint({ i: 0, j: 0 });
-    const b = g.getCenterPoint({ i: 0, j: lastC });
-    const c = g.getCenterPoint({ i: lastR, j: 0 });
-    const d = g.getCenterPoint({ i: 1, j: 0 });
-    return { a, sx: (b.x - a.x) / (lastC * W), sy: (c.y - a.y) / (lastR * 1.5 * R), odd: d.x - a.x };
-  };
-  let m = measure();
-  if (Math.abs(m.sx - 1) > 0.001 || Math.abs(m.sy - 1) > 0.001) {
-    await scene.update({ width: Math.ceil(S.width * m.sx), height: Math.ceil(S.height * m.sy) });
-    m = measure();
-  }
-  if (m.odd < 0) ui.notifications.warn("Ряды гексов сдвинуты в другую сторону, чем на карте. Напиши Claude.");
-  const tf = { sx: m.sx, sy: m.sy, ox: m.a.x - (W / 2) * m.sx, oy: m.a.y - R * m.sy };
-  const tile = { x: Math.round(tf.ox), y: Math.round(tf.oy), width: Math.round(S.width * tf.sx), height: Math.round(S.height * tf.sy),
+  // при импорте карта ставится как есть (масштаб 1, без сдвига); точная подгонка — liveFit() по живой сетке на экране
+  const tf = { sx: 1, sy: 1, ox: 0, oy: 0 };
+  const tile = { x: 0, y: 0, width: S.width, height: S.height,
     texture: { src: `${ROOT}/assets/island-map-hd.webp` }, locked: true, sort: -100000, flags: { [MOD]: { map: true } } };
   const ex = scene.tiles.find((t) => t.getFlag(MOD, "map"));
   if (ex) await ex.update(tile);
   else await scene.createEmbeddedDocuments("Tile", [tile]);
   await scene.setFlag(MOD, "fit", tf);
   return tf;
+}
+
+/* Подгонка по живой сетке canvas.grid — той же, по которой Foundry рисует гексы и по которой модуль
+   определяет гекс под курсором. Картинка: центр гекса (0,0) в (W/2, R), шаг W по столбцам, 1.5R по рядам. */
+let fitting = false;
+async function liveFit() {
+  if (fitting || !game.user.isGM || !activeGM() || !isIsle() || !canvas?.ready) return;
+  const scene = canvas.scene;
+  const C = await content();
+  const S = C.scene;
+  const W = S.gridSize, R = W / Math.sqrt(3), lastR = 20, lastC = 27;
+  const g = canvas.grid;
+  const a = g.getCenterPoint({ i: 0, j: 0 });
+  const b = g.getCenterPoint({ i: 0, j: lastC });
+  const c = g.getCenterPoint({ i: lastR, j: 0 });
+  const d = g.getCenterPoint({ i: 1, j: 0 });
+  const sx = (b.x - a.x) / (lastC * W), sy = (c.y - a.y) / (lastR * 1.5 * R);
+  const tf = { sx, sy, ox: a.x - (W / 2) * sx, oy: a.y - R * sy };
+  console.log(`${MOD} | fit`, { a, b, c, d, tf, dims: canvas.dimensions, grid: { type: g.type, size: g.size, sizeX: g.sizeX, sizeY: g.sizeY } });
+  if (!(sx > 0.2 && sx < 5 && sy > 0.2 && sy < 5)) return ui.notifications.error("Остров: странная сетка, подгонка отменена. Скинь Claude консоль (F12).");
+  if (d.x - a.x < 0) ui.notifications.warn("Остров: нечётные ряды сетки сдвинуты не в ту сторону. Поставь в сцене «Шестигранники, нечётные ряды».");
+  const old = scene.getFlag(MOD, "fit") ?? { sx: 1, sy: 1, ox: 0, oy: 0 };
+  const tile = scene.tiles.find((t) => t.getFlag(MOD, "map"));
+  const want = { x: Math.round(tf.ox), y: Math.round(tf.oy), width: Math.round(S.width * sx), height: Math.round(S.height * sy) };
+  const same = tile && Math.abs(tile.x - want.x) < 2 && Math.abs(tile.y - want.y) < 2 && Math.abs(tile.width - want.width) < 2 && Math.abs(tile.height - want.height) < 2;
+  if (same) return;
+  fitting = true;
+  try {
+    if (tile) await tile.update(want);
+    // пины мастера и игроков переезжают вместе с картой
+    const move = (x, y) => ({ x: Math.round(tf.ox + ((x - old.ox) / old.sx) * sx), y: Math.round(tf.oy + ((y - old.oy) / old.sy) * sy) });
+    const upd = scene.notes.filter((n) => n.getFlag(MOD, "gm") || n.getFlag(MOD, "player")).map((n) => ({ _id: n.id, ...move(n.x, n.y) }));
+    if (upd.length) await scene.updateEmbeddedDocuments("Note", upd);
+    await scene.setFlag(MOD, "fit", tf);
+    ui.notifications.info("Остров: карта подогнана под сетку.");
+  } finally { fitting = false; }
 }
 
 async function importIsland() {
@@ -139,6 +160,7 @@ async function importIsland() {
   if (!st.explored.length) st.explored = ["18,14", "18,15", "17,14", "17,15", "19,14", "19,15", "18,13", "18,16"];
   await saveState(st, scene);
   await scene.view();
+  setTimeout(liveFit, 1500);
   ui.notifications.info(`Остров готов: ${C.journals.length} журналов, ${notes.length} пинов мастера.`);
 }
 
@@ -465,7 +487,7 @@ function onDblClick(ev) {
 }
 
 Hooks.once("init", () => {
-  game.modules.get(MOD).api = { importIsland, openPanel, newDay };
+  game.modules.get(MOD).api = { importIsland, openPanel, newDay, liveFit };
 });
 
 Hooks.once("ready", () => {
@@ -484,7 +506,7 @@ Hooks.once("ready", () => {
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeCard(); });
 });
 
-Hooks.on("canvasReady", () => { closeCard(); renderBar(); if (panel?.rendered) panel.render(); });
+Hooks.on("canvasReady", () => { closeCard(); renderBar(); if (panel?.rendered) panel.render(); setTimeout(liveFit, 300); });
 Hooks.on("updateToken", (doc, changes) => { onTokenMoved(doc, changes); });
 Hooks.on("updateScene", (scene, changes) => {
   if (scene.id !== canvas.scene?.id) return;
