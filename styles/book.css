@@ -218,3 +218,11 @@
 .xb-gm{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
 .xb-gm button{flex:1;min-width:140px}
 .xb-clear{float:right;width:auto;font-size:13px;line-height:22px;padding:0 10px}
+/* прокрутка: страницы не растягиваются, хроника растёт вниз, а не вбок */
+.xb-spread { min-height: 0; overflow: hidden; }
+.xb-page { min-height: 0; max-height: 100%; overscroll-behavior: contain; }
+.xb-cols { height: auto !important; column-fill: balance !important; }
+.xb-day { break-inside: avoid; }
+.xb-page::-webkit-scrollbar { width: 8px; }
+.xb-page::-webkit-scrollbar-thumb { background: #b08d57; border-radius: 4px; }
+.xb-cols { column-count: 1 !important; display: grid; grid-template-columns: 1fr 1fr; column-gap: 68px; align-items: start; }
