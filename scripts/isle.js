@@ -4,6 +4,7 @@ import { buildLabyrinth } from "./labyrinth.js";
 import { buildEcho } from "./echo.js";
 import { buildTables, hasTables, rollHex } from "./tables.js";
 import { registerCalendar, parts, fmtDate, setDate } from "./calendar.js";
+import { ROAMERS, initRoam, stepRoam, drawRoam } from "./roam.js";
 import { startFX, stopFX, refreshPools, hoverAt, pingHex, weatherFor } from "./fx.js";
 
 export const MOD = "lizard-isle";
@@ -292,7 +293,7 @@ async function onTokenMoved(doc, changes) {
     path = hexLine(fr, fc, to.r, to.c).slice(1);
   }
 
-  const lines = [], combats = [], publics = [];
+  const lines = [], combats = [], publics = [], roamHits = [], roamSigns = [];
   let addHours = 0;
   const explored = new Set(st.explored);
   for (const [r, c] of path) {
@@ -318,9 +319,16 @@ async function onTokenMoved(doc, changes) {
         enc = `<br>⚔ <b>Встреча!</b> к6 = ${d6.total}, к8 = ${d8.total}: ${esc(I.ENC[ch][d8.total - 1])}`;
       } else enc = `<br><span class="mute">к6 = ${d6.total}, встречи нет</span>`;
     }
+    let roamTxt = "";
+    if (game.settings.get(MOD, "roam")) {
+      const rr = stepRoam(I, st, [r, c], coord);
+      roamTxt = rr.gm.map((g) => `<br>${g.text}`).join("");
+      for (const g of rr.gm) if (g.combat) roamHits.push(g);
+      for (const p of rr.pub) roamSigns.push(p);
+    }
     const here = I.gmHere[hkey(r, c)];
     const tired = before <= 8 && st.hours > 8 ? `<br>😓 <b>Больше 8 часов в пути:</b> Тел СЛ 12 от истощения или разбить лагерь.` : "";
-    lines.push(`<li><b>${coord(I, r, c)} · ${esc(t.n)}</b> (+${t.h} ч)${ch === "r" ? `<br>🌊 ${esc(t.note)}` : ""}${enc}${here ? `<br>📌 ${here.map(esc).join("; ")}` : ""}${tired}</li>`);
+    lines.push(`<li><b>${coord(I, r, c)} · ${esc(t.n)}</b> (+${t.h} ч)${ch === "r" ? `<br>🌊 ${esc(t.note)}` : ""}${enc}${here ? `<br>📌 ${here.map(esc).join("; ")}` : ""}${roamTxt}${tired}</li>`);
   }
   const land = path.filter(([r, c]) => inMap(I, r, c) && I.RAW[r][c] !== "~");
   if (land.length) {
@@ -339,6 +347,12 @@ async function onTokenMoved(doc, changes) {
   });
   // игровое время (Simple Timekeeping и любой календарь читают game.time.worldTime)
   if (addHours && game.settings.get(MOD, "timeSync")) { try { await game.time.advance(addHours * 3600); } catch (e) { console.warn(e); } }
+  if (game.settings.get(MOD, "roam")) await drawRoam(doc.parent, st, hexCenter, hexRadius);
+  for (const g of roamHits) ui.notifications.error(g.text.replace(/<[^>]+>/g, ""), { permanent: true });
+  for (const p of [...new Map(roamSigns.map((x) => [x.k, x])).values()]) {
+    ChatMessage.create({ speaker: { alias: "Остров" }, content: `<div class="isle-chat"><h3>Что-то не так</h3><p>${esc(p.text)}</p></div>` });
+    toast({ title: "Что-то рядом", sub: p.text, color: "#5a4a1c", icon: "👁" }, true);
+  }
   // бой — только мастеру; остальное — всем
   for (const r of combats) {
     ui.notifications.warn(`⚔ Бой! ${r.where}: ${r.text}`, { permanent: true });
@@ -474,7 +488,9 @@ class IslePanel extends ApplicationV2 {
         <p class="mute">Двигай токен партии — в чат (только тебе) придут часы пути, броски встреч и что спрятано в гексе. Соседние гексы откроются для карточек игроков.</p>
         <p><b>Исследовано гексов:</b> ${st.explored.length} · <b>открыто игрокам:</b> ${st.revealed.length}</p>
         <p><button data-act="hours">Сбросить часы дня</button> <button data-act="reset">Сбросить исследование</button></p>
-        <p><button data-act="marks">🧹 Убрать отметки игроков</button></p>`;
+        <p><button data-act="marks">🧹 Убрать отметки игроков</button></p>
+        <h3>Бродячие боссы</h3>${Object.entries(ROAMERS).map(([k, R]) => { const m = initRoam(st)[k];
+          return `<p>${R.icon} <b>${esc(R.name)}</b>: ${m.on ? coord(I, m.r, m.c) : "убит"} <button data-roam="${k}" data-op="toggle">${m.on ? "Убит" : "Вернуть"}</button> <button data-roam="${k}" data-op="home">В логово</button></p>`; }).join("")}`;
     } else if (this.tab === "reveal") {
       const groups = {};
       for (const it of I.reveal) (groups[it.group] ??= []).push(it);
@@ -531,6 +547,11 @@ class IslePanel extends ApplicationV2 {
       this.render();
     };
     content.querySelectorAll("[data-act]").forEach((b) => b.onclick = () => act(b.dataset.act));
+    content.querySelectorAll("[data-roam]").forEach((b) => b.onclick = async () => {
+      const st = getState(), m = initRoam(st)[b.dataset.roam], R = ROAMERS[b.dataset.roam];
+      if (b.dataset.op === "toggle") m.on = !m.on; else { m.r = R.start[0]; m.c = R.start[1]; }
+      await saveState(st); await drawRoam(canvas.scene, st, hexCenter, hexRadius); this.render();
+    });
     content.querySelector("[data-weather]")?.addEventListener("change", (e) => canvas.scene.update({ weather: e.target.value }));
     content.querySelectorAll("[data-reveal]").forEach((b) => b.onclick = async () => {
       const I = await island(); await revealItem(I.reveal.find((x) => x.key === b.dataset.reveal)); this.render();
@@ -617,6 +638,8 @@ Hooks.once("init", () => {
   game.modules.get(MOD).api = { importIsland, openPanel, newDay, liveFit, openBook, buildLabyrinth, buildEcho, buildTables };
   registerCalendar();
   game.settings.register(MOD, "autoRoll", { name: "Автоброски в пути", hint: "Когда партия входит в опасный гекс — бросок «Когда бросать» и нужной таблицы. Бой видит только мастер, остальное — все.",
+    scope: "world", config: true, type: Boolean, default: true });
+  game.settings.register(MOD, "roam", { name: "Бродячие боссы", hint: "Пожиратель троп и Речной левиафан ходят по острову, пока ходит партия. Их метки видит только мастер. Рядом — знаки игрокам, в одном гексе — бой.",
     scope: "world", config: true, type: Boolean, default: true });
   game.settings.register(MOD, "timeSync", { name: "Синхронизировать игровое время", hint: "Часы пути двигают время мира (его показывают Simple Timekeeping и другие календари). «Новый день» мотает до 6:00.",
     scope: "world", config: true, type: Boolean, default: true });
