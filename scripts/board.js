@@ -53,7 +53,7 @@ async function pins() {
 }
 
 export const Board = {
-  el: null, view: { tx: 0, ty: 0, s: 0.3 }, linkFrom: null, color: COLORS[0], showMap: true,
+  el: null, view: { tx: 0, ty: 0, s: 0.3 }, linkFrom: null, color: COLORS[0], showMap: false,
   toggle() { this.el ? this.close() : this.open(); },
   close() { this.el?.remove(); this.el = null; },
   open() {
@@ -67,7 +67,7 @@ export const Board = {
         <button data-x="link" title="Нажми карточку, потом вторую">🧵 Нить</button>
         <span class="bd-colors">${COLORS.map((c) => `<i data-c="${c}" style="background:${c}"></i>`).join("")}</span>
         <button data-x="map">🗺 Карта</button>
-        <button data-x="fit">⤢ Весь остров</button>
+        <button data-x="fit">⤢ Всё</button>
         ${game.user.isGM ? `<button data-x="clear" class="bd-danger">Очистить</button>` : ""}
       </nav>
       <div class="bd-view"><div class="bd-world"></div></div>`;
@@ -86,7 +86,7 @@ export const Board = {
   applyView() { const w = this.el?.querySelector(".bd-world"); if (w) w.style.transform = `translate(${this.view.tx}px,${this.view.ty}px) scale(${this.view.s})`; },
   async render() {
     if (!this.el) return;
-    const d = data(), P = await pins();
+    const d = data(), P = [];
     const nodes = new Map();
     P.forEach((p) => nodes.set(p.id, p));
     Object.values(d.cards ?? {}).forEach((c) => nodes.set(c.id, c));

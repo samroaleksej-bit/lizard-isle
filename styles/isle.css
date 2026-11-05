@@ -76,7 +76,7 @@
 #isle-board .bd-view{position:relative;flex:1;overflow:hidden;background:#120d07;cursor:grab}
 #isle-board .bd-world{position:absolute;left:0;top:0;width:3990px;height:2587px;transform-origin:0 0}
 #isle-board .bd-map{position:absolute;inset:0;width:3990px;height:2587px;opacity:.55;filter:sepia(.5);pointer-events:none}
-#isle-board .bd-blank{background:repeating-linear-gradient(0deg,#1e160c 0 79px,#2a1f12 79px 80px),repeating-linear-gradient(90deg,#1e160c 0 79px,#2a1f12 79px 80px);opacity:1}
+#isle-board .bd-blank{background:#6b4a2b radial-gradient(#ffffff10 1px,transparent 1.5px) 0 0/14px 14px;box-shadow:inset 0 0 200px #0008;opacity:1}
 #isle-board .bd-svg{position:absolute;inset:0;width:3990px;height:2587px;overflow:visible}
 #isle-board .bd-thread{fill:none;stroke-width:14;stroke-linecap:round;opacity:.9;cursor:pointer;filter:drop-shadow(0 2px 2px rgba(0,0,0,.6))}
 #isle-board .bd-tl{font:700 50px "XB Serif",Georgia,serif;fill:#f6ecd2;text-anchor:middle;paint-order:stroke;stroke:#000;stroke-width:6px;cursor:pointer}

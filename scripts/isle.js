@@ -428,7 +428,7 @@ export function showHandout(item) {
 }
 
 /* ---------------- открыть игрокам ---------------- */
-async function revealItem(item) {
+export async function revealItem(item) {
   const st = getState();
   const diary = game.journal.get(st.diaryId);
   if (!diary) return ui.notifications.error("Нет «Дневника экспедиции». Запусти импорт острова в панели.");
@@ -460,7 +460,7 @@ async function revealItem(item) {
   showFind(item.key);
 }
 
-async function hideItem(key) {
+export async function hideItem(key) {
   const st = getState();
   const x = st.revealed.find((y) => y.key === key);
   if (!x) return;

@@ -71,22 +71,28 @@ export function bookHTML(I, st, view, isGM) {
   }
 
   if (tab === "finds") {
-    const found = st.revealed ?? [];
+    const opened = new Map((st.revealed ?? []).map((x) => [x.key, x]));
+    const items = I.reveal.filter((r) => r.group !== "Квесты" && (isGM || opened.has(r.key)));
     const groups = {};
-    for (const x of found) { const it = I.reveal.find((r) => r.key === x.key); (groups[it?.group ?? "Разное"] ??= []).push(x); }
-    const sel = found.find((x) => x.key === view.sel) ?? found[found.length - 1];
-    left = `<h2 class="xb-h">Находки</h2>${found.length ? Object.entries(groups).map(([g, xs]) =>
-      `<div class="xb-fac"><h4>${esc(g)}</h4><ul>${xs.map((x, i) => `<li data-f="${x.key}" class="${sel?.key === x.key ? "sel" : ""}" style="--i:${i}"><span class="xb-mk">✦</span>${esc(x.name)}</li>`).join("")}</ul></div>`).join("")
+    for (const it of items) (groups[it.group] ??= []).push(it);
+    const sel = items.find((x) => x.key === view.sel) ?? items.filter((x) => opened.has(x.key)).pop() ?? (isGM ? items[0] : null);
+    const nm = (it) => opened.get(it.key)?.name ?? it.name;
+    left = `<h2 class="xb-h">Находки</h2>${items.length ? Object.entries(groups).map(([g, xs]) =>
+      `<div class="xb-fac"><h4>${esc(g)}</h4><ul>${xs.map((x, i) => `<li data-f="${x.key}" class="${sel?.key === x.key ? "sel" : ""}${opened.has(x.key) ? "" : " xb-locked"}" style="--i:${i}"><span class="xb-mk">${opened.has(x.key) ? "✦" : "🔒"}</span>${esc(nm(x))}</li>`).join("")}</ul></div>`).join("")
       : `<p class="xb-hand xb-empty">Остров ещё не открыл вам своих тайн.</p>`}`;
-    const art = I.reveal.find((r) => r.key === sel?.key)?.img;
-    right = sel ? `<div class="xb-detail">
-        <h2>${esc(sel.name)}</h2>
-        <div class="xb-meta">${coord(I, sel.at[0], sel.at[1])}</div>
+    if (sel) {
+      const o = opened.get(sel.key);
+      right = `<div class="xb-detail">
+        <h2>${esc(nm(sel))}</h2>
+        <div class="xb-meta">${coord(I, sel.at[0], sel.at[1])}${o ? "" : " · <b>игроки не видят</b>"}</div>
         <div class="xb-rule"></div>
-        ${art ? `<figure class="xb-photo"><img src="modules/${MOD}/assets/${art}" data-zoom="${esc(sel.name)}" draggable="false"></figure>` : ""}
-        <div class="xb-text" data-pagetext="${sel.pageId}"></div>
-        <p class="xb-loc">⌖ <a data-pan="${sel.at[0]},${sel.at[1]}">показать на карте</a> · <a data-page="${sel.pageId}">открыть в дневнике</a></p>
-      </div>` : `<div class="xb-blank">❦</div>`;
+        ${sel.img ? `<figure class="xb-photo${o ? "" : " xb-ghost"}"><img src="modules/${MOD}/assets/${sel.img}" data-zoom="${esc(nm(sel))}" draggable="false"></figure>` : ""}
+        ${o ? `<div class="xb-text" data-pagetext="${o.pageId}"></div>` : (sel.text ? `<div class="xb-text"><p>${esc(sel.text)}</p></div>` : "")}
+        ${isGM ? `<div class="xb-gm">${o
+          ? `<button data-fshow="${sel.key}">📖 Показать всем</button><button data-fhide="${sel.key}">🔒 Скрыть от игроков</button>`
+          : `<button data-fopen="${sel.key}">👁 Открыть игрокам</button>`}</div>` : ""}
+      </div>`;
+    } else right = `<div class="xb-blank">❦</div>`;
   }
 
   if (tab === "chronicle") {
@@ -157,6 +163,12 @@ export class QuestBook extends ApplicationV2 {
     content.querySelectorAll("[data-tab]").forEach((a) => a.onclick = () => { this.view = { tab: a.dataset.tab, sel: null }; this._turn = true; this.render(); });
     content.querySelectorAll("[data-q]").forEach((li) => li.onclick = () => { this.view.sel = li.dataset.q; this._turn = true; this.render(); });
     content.querySelectorAll("[data-f]").forEach((li) => li.onclick = () => { this.view.sel = li.dataset.f; this._turn = true; this.render(); });
+    content.querySelectorAll("[data-fopen]").forEach((b) => b.onclick = async () => {
+      const m = await import("./isle.js"); const I = await island();
+      await m.revealItem(I.reveal.find((x) => x.key === b.dataset.fopen)); this.render();
+    });
+    content.querySelectorAll("[data-fhide]").forEach((b) => b.onclick = async () => { await (await import("./isle.js")).hideItem(b.dataset.fhide); this.render(); });
+    content.querySelectorAll("[data-fshow]").forEach((b) => b.onclick = async () => (await import("./isle.js")).showFind(b.dataset.fshow));
     content.querySelectorAll("[data-zoom]").forEach((im) => im.onclick = () => {
       const IP = foundry.applications.apps.ImagePopout ?? ImagePopout;
       new IP({ src: im.getAttribute("src"), window: { title: im.dataset.zoom } }).render(true);

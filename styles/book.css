@@ -212,3 +212,8 @@
 .xb-photo{margin:4px auto 12px;padding:8px 8px 10px;background:#fbf5e6;box-shadow:0 3px 10px #0004;transform:rotate(-1.5deg);max-width:92%;position:relative}
 .xb-photo::before{content:"";position:absolute;top:-9px;left:50%;width:70px;height:20px;margin-left:-35px;background:#e9dcae99;transform:rotate(2deg);box-shadow:0 1px 2px #0002}
 .xb-photo img{display:block;width:100%;max-height:300px;object-fit:contain;border:0;cursor:zoom-in}
+
+.xb-locked{opacity:.5}
+.xb-photo.xb-ghost{opacity:.6;filter:grayscale(.6)}
+.xb-gm{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.xb-gm button{flex:1;min-width:140px}
