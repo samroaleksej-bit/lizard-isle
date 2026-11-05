@@ -192,6 +192,8 @@ export class QuestBook extends ApplicationV2 {
     // окно поверх всего: своё положение, перетаскивание за обложку, клик — на передний план
     const el = this.element;
     placeWindow(el);
+    paginate(content);
+    content.querySelectorAll(".xb-page img").forEach((im) => !im.complete && im.addEventListener("load", () => paginate(content), { once: true }));
     el.onpointerdown = () => toFront(el);
     content.querySelector(".xb-cover").addEventListener("pointerdown", (e) => {
       if (e.button !== 0 || e.target.closest(".xb-page, button, a, input, select, .xb-ribbons")) return;
@@ -217,11 +219,40 @@ export class QuestBook extends ApplicationV2 {
 
 let book = null;
 /* положение окна запоминается у каждого игрока */
+/* листание: если текст не влезает — внизу страницы «‹ 1 / 3 ›», страница перелистывается целиком */
+function paginate(content) {
+  for (const pg of content.querySelectorAll(".xb-page")) {
+    pg.querySelector(".xb-pager")?.remove();
+    const step = () => pg.clientHeight - 70;
+    const total = () => Math.max(1, Math.ceil((pg.scrollHeight - pg.clientHeight) / step()) + 1);
+    if (pg.scrollHeight <= pg.clientHeight + 4) continue;
+    const bar = document.createElement("div");
+    bar.className = "xb-pager";
+    bar.innerHTML = `<a data-pg="-1" title="Назад">‹</a><span></span><a data-pg="1" title="Дальше">›</a>`;
+    pg.append(bar);
+    const cur = () => Math.min(total(), Math.round(pg.scrollTop / step()) + 1);
+    const upd = () => { const c = cur(), t = total(); bar.querySelector("span").textContent = `${c} / ${t}`;
+      bar.querySelector("[data-pg='-1']").classList.toggle("off", c <= 1); bar.querySelector("[data-pg='1']").classList.toggle("off", c >= t); };
+    bar.addEventListener("click", (e) => {
+      const a = e.target.closest("[data-pg]"); if (!a) return;
+      const n = Math.max(0, Math.min(total() - 1, cur() - 1 + Number(a.dataset.pg)));
+      pg.classList.remove("xb-flip"); void pg.offsetWidth; pg.classList.add("xb-flip");
+      pg.scrollTo({ top: n * step(), behavior: "auto" });
+    });
+    pg.addEventListener("scroll", upd, { passive: true });
+    upd();
+  }
+}
+
 const POS = { left: null, top: null };
 try { Object.assign(POS, JSON.parse(localStorage.getItem(`${MOD}.bookPos`) || "{}")); } catch (e) {}
 function savePos() { try { localStorage.setItem(`${MOD}.bookPos`, JSON.stringify(POS)); } catch (e) {} }
-let Z = 9000;
-function toFront(el) { el.style.zIndex = String(++Z); }
+// очередь окон Foundry: книга встаёт наверх, но новые окна (диалоги, картинки) открываются уже над ней
+function toFront(el) {
+  if (book?.bringToFront) { try { return book.bringToFront(); } catch (e) {} }
+  const AV2 = foundry.applications.api.ApplicationV2;
+  el.style.zIndex = String(AV2._maxZ !== undefined ? ++AV2._maxZ : 100);
+}
 function placeWindow(el) {
   const w = Math.min(1000, window.innerWidth - 40), h = Math.min(660, window.innerHeight - 40);
   if (POS.left === null || POS.top === null) { POS.left = (window.innerWidth - w) / 2; POS.top = (window.innerHeight - h) / 2; }
