@@ -1,5 +1,6 @@
 // Скрытые земли · Остров — интерактивный гекс-краул для Foundry VTT v13/v14.
 import { openBook, toggleBook, refreshBook, logEntry, toast } from "./book.js";
+import { buildLabyrinth } from "./labyrinth.js";
 import { startFX, stopFX, refreshPools, hoverAt, pingHex, weatherFor } from "./fx.js";
 
 export const MOD = "lizard-isle";
@@ -427,7 +428,9 @@ class IslePanel extends ApplicationV2 {
     } else {
       body = `<p>Создаёт или обновляет сцену «Скрытые земли · Остров», журналы мастера (места, боссы, квесты, данжи, фракции, герои) и «Дневник экспедиции» для игроков.</p>
         <p>Повторный запуск обновляет тексты и пины мастера. Открытое игрокам, исследованные гексы и отметки игроков сохраняются.</p>
-        <p><button data-act="import">🌴 Импортировать / обновить остров</button></p>`;
+        <p><button data-act="import">🌴 Импортировать / обновить остров</button></p>
+        <p><button data-act="labyrinth">🕯 Собрать Лабиринт Ордена (20 сцен)</button></p>
+        <p class="hint">Видео сначала залей в Data/labirint-ordena/.</p>`;
     }
     el.innerHTML = tabs + `<div class="isle-body">${body}</div>`;
     return el;
@@ -438,6 +441,7 @@ class IslePanel extends ApplicationV2 {
     content.querySelectorAll("[data-tab]").forEach((a) => a.onclick = () => { this.tab = a.dataset.tab; this.render(); });
     const act = async (name) => {
       if (name === "import") await importIsland();
+      if (name === "labyrinth") await buildLabyrinth();
       if (name === "newday") await newDay();
       if (name === "party") {
         const t = canvas.tokens.controlled[0];
@@ -504,7 +508,7 @@ function onDblClick(ev) {
 }
 
 Hooks.once("init", () => {
-  game.modules.get(MOD).api = { importIsland, openPanel, newDay, liveFit, openBook };
+  game.modules.get(MOD).api = { importIsland, openPanel, newDay, liveFit, openBook, buildLabyrinth };
   game.settings.register(MOD, "fx", { name: "Анимации острова", hint: "Облака, блики на воде, светлячки, подсветка гекса. Выключи, если тормозит.",
     scope: "client", config: true, type: Boolean, default: true, onChange: () => startFX() });
 });
