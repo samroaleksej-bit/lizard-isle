@@ -2,7 +2,7 @@
   "id": "lizard-isle",
   "title": "Скрытые земли · Остров людоящеров",
   "description": "<p>Интерактивный гекс-остров для кампании «Скрытые земли людоящеров» (D&D 2024): сцена с рисованной картой, журналы мастера, путешествие с автобросками встреч и погоды, карточки гексов, «Дневник экспедиции» и отметки игроков.</p>",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "authors": [
     {
       "name": "Verlierboy",
@@ -23,5 +23,5 @@
   "socket": true,
   "url": "https://github.com/samroaleksej-bit/lizard-isle",
   "manifest": "https://raw.githubusercontent.com/samroaleksej-bit/lizard-isle/main/module.json",
-  "download": "https://github.com/samroaleksej-bit/lizard-isle/archive/refs/tags/v1.0.0.zip"
+  "download": "https://github.com/samroaleksej-bit/lizard-isle/archive/refs/tags/v1.0.1.zip"
 }

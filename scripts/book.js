@@ -261,7 +261,7 @@ function toFront(el) {
   el.style.zIndex = String(AV2._maxZ !== undefined ? ++AV2._maxZ : 100);
 }
 function placeWindow(el) {
-  const w = Math.min(1000, window.innerWidth - 40), h = Math.min(660, window.innerHeight - 40);
+  const w = Math.min(1040, window.innerWidth - 40), h = Math.min(760, window.innerHeight - 110);
   if (POS.left === null || POS.top === null) { POS.left = (window.innerWidth - w) / 2; POS.top = (window.innerHeight - h) / 2; }
   // не даём утащить книгу за край экрана целиком
   POS.left = Math.max(-w + 120, Math.min(window.innerWidth - 120, POS.left));
