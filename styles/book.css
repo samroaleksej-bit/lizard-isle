@@ -217,3 +217,4 @@
 .xb-photo.xb-ghost{opacity:.6;filter:grayscale(.6)}
 .xb-gm{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
 .xb-gm button{flex:1;min-width:140px}
+.xb-clear{float:right;width:auto;font-size:13px;line-height:22px;padding:0 10px}

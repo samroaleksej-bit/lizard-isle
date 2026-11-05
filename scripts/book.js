@@ -123,7 +123,7 @@ export function bookHTML(I, st, view, isGM) {
 
   const ribbons = TABS.map(([k, n], i) => `<a data-tab="${k}" class="xb-rib r${i} ${tab === k ? "on" : ""}"><span>${n}</span></a>`).join("");
   const pages = spread
-    ? `<section class="xb-page xb-wide"><h2 class="xb-h">Хроника экспедиции</h2><div class="xb-cols">${spread}</div></section>`
+    ? `<section class="xb-page xb-wide"><h2 class="xb-h">Хроника экспедиции${isGM && (st.log ?? []).length ? ` <button data-clearlog class="xb-clear" title="Стереть все записи">🧹 Очистить</button>` : ""}</h2><div class="xb-cols">${spread}</div></section>`
     : `<section class="xb-page xb-left">${left}</section><section class="xb-page xb-right"><div class="xb-turn">${right}</div></section>`;
   return `<div class="xb-book"><div class="xb-cover" data-drag>
       <div class="xb-title" data-drag>Полевой журнал экспедиции · День ${st.day}</div>
@@ -163,6 +163,11 @@ export class QuestBook extends ApplicationV2 {
     content.querySelectorAll("[data-tab]").forEach((a) => a.onclick = () => { this.view = { tab: a.dataset.tab, sel: null }; this._turn = true; this.render(); });
     content.querySelectorAll("[data-q]").forEach((li) => li.onclick = () => { this.view.sel = li.dataset.q; this._turn = true; this.render(); });
     content.querySelectorAll("[data-f]").forEach((li) => li.onclick = () => { this.view.sel = li.dataset.f; this._turn = true; this.render(); });
+    content.querySelector("[data-clearlog]")?.addEventListener("click", async () => {
+      const ok = await foundry.applications.api.DialogV2.confirm({ window: { title: "Очистить хронику" }, content: "<p>Стереть все записи хроники экспедиции? Это не отменить.</p>" });
+      if (!ok) return;
+      const st = getState(); st.log = []; await saveState(st); this.render();
+    });
     content.querySelectorAll("[data-fopen]").forEach((b) => b.onclick = async () => {
       const m = await import("./isle.js"); const I = await island();
       await m.revealItem(I.reveal.find((x) => x.key === b.dataset.fopen)); this.render();
@@ -251,7 +256,7 @@ async function setQuest(id, status) {
   const f = I.FQ[q.f];
   const st = getState();
   st.quests ??= {};
-  if (!status) delete st.quests[id];
+  if (!status) st.quests[id] = null; // setFlag сливает объекты: delete не стирает ключ
   else st.quests[id] = status;
   if (status === "active") logEntry(st, `${f.giver} поручает: «${q.n}».`, "quest");
   if (status === "done") logEntry(st, `Задание «${q.n}» выполнено.`, "done");
