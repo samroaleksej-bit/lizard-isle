@@ -2,7 +2,7 @@
 import { openBook, toggleBook, refreshBook, logEntry, toast } from "./book.js";
 import { buildLabyrinth } from "./labyrinth.js";
 import { buildEcho } from "./echo.js";
-import { buildTables } from "./tables.js";
+import { buildTables, hasTables, rollHex } from "./tables.js";
 import { startFX, stopFX, refreshPools, hoverAt, pingHex, weatherFor } from "./fx.js";
 
 export const MOD = "lizard-isle";
@@ -291,7 +291,8 @@ async function onTokenMoved(doc, changes) {
     path = hexLine(fr, fc, to.r, to.c).slice(1);
   }
 
-  const lines = [];
+  const lines = [], combats = [], publics = [];
+  let addHours = 0;
   const explored = new Set(st.explored);
   for (const [r, c] of path) {
     if (!inMap(I, r, c)) continue;
@@ -300,9 +301,16 @@ async function onTokenMoved(doc, changes) {
     for (const [nr, nc] of neighbors(r, c)) if (inMap(I, nr, nc)) explored.add(hkey(nr, nc));
     if (ch === "~") { lines.push(`<li><b>${coord(I, r, c)} · Море.</b> Без лодки не пройти.</li>`); continue; }
     const before = st.hours;
-    st.hours += t.h;
+    st.hours += t.h; addHours += t.h;
     let enc = "";
-    if (t.d > 0) {
+    if (t.d > 0 && hasTables() && game.settings.get(MOD, "autoRoll")) {
+      const rh = await rollHex(ch, `${coord(I, r, c)} · ${t.n}`);
+      if (rh) {
+        enc = `<br>${rh.gm}`;
+        if (rh.combat) combats.push(rh);
+        if (rh.pub) publics.push(rh);
+      }
+    } else if (t.d > 0) {
       const d6 = await new Roll("1d6").evaluate();
       if (d6.total <= t.d && I.ENC[ch]) {
         const d8 = await new Roll("1d8").evaluate();
@@ -328,12 +336,32 @@ async function onTokenMoved(doc, changes) {
     whisper: ChatMessage.getWhisperRecipients("GM").map((u) => u.id),
     content: `<div class="isle-chat"><h3>День ${st.day} · ${st.hours} ч в пути</h3><ul>${lines.join("")}</ul></div>`
   });
+  // игровое время (Simple Timekeeping и любой календарь читают game.time.worldTime)
+  if (addHours && game.settings.get(MOD, "timeSync")) { try { await game.time.advance(addHours * 3600); } catch (e) { console.warn(e); } }
+  // бой — только мастеру; остальное — всем
+  for (const r of combats) {
+    ui.notifications.warn(`⚔ Бой! ${r.where}: ${r.text}`, { permanent: true });
+  }
+  for (const r of publics) {
+    const TITLE = { talk: "Встреча в пути", loot: "Находка", hazard: "Опасность", omen: "Знак", faction: "Встреча" };
+    ChatMessage.create({ speaker: { alias: "Остров" }, content: `<div class="isle-chat"><h3>${TITLE[r.kind] ?? "В пути"} · ${esc(r.where)}</h3><p>${r.pub}</p></div>` });
+    toast({ title: TITLE[r.kind] ?? "В пути", sub: r.text.length > 90 ? r.text.slice(0, 88) + "…" : r.text, color: r.kind === "hazard" ? "#a3242c" : "#2f7a5b", icon: { talk: "👣", loot: "🎁", hazard: "⚠", omen: "👁", faction: "⚑" }[r.kind] ?? "📜" }, true);
+  }
 }
 
 async function newDay() {
   const I = await island();
   const st = getState();
   st.day += 1; st.hours = 0;
+  if (game.settings.get(MOD, "timeSync")) {
+    try {
+      const comp = game.time.calendar?.timeToComponents?.(game.time.worldTime) ?? game.time.components;
+      const h = comp?.hour ?? 0, m = comp?.minute ?? 0, sec = comp?.second ?? 0;
+      let toDawn = ((24 + 6 - h) % 24) * 3600 - m * 60 - sec;
+      if (toDawn <= 0) toDawn += 24 * 3600;
+      await game.time.advance(toDawn);
+    } catch (e) { try { await game.time.advance(24 * 3600); } catch (e2) {} }
+  }
   const roll = await new Roll("1d6").evaluate();
   const w = I.WEATHER[roll.total - 1];
   logEntry(st, `Рассвет. Погода: ${w.split(":")[0]}.`, "day");
@@ -419,7 +447,8 @@ class IslePanel extends ApplicationV2 {
         <p><button data-act="party">Выделенный токен — это партия</button></p>
         <p class="mute">Двигай токен партии — в чат (только тебе) придут часы пути, броски встреч и что спрятано в гексе. Соседние гексы откроются для карточек игроков.</p>
         <p><b>Исследовано гексов:</b> ${st.explored.length} · <b>открыто игрокам:</b> ${st.revealed.length}</p>
-        <p><button data-act="hours">Сбросить часы дня</button> <button data-act="reset">Сбросить исследование</button></p>`;
+        <p><button data-act="hours">Сбросить часы дня</button> <button data-act="reset">Сбросить исследование</button></p>
+        <p><button data-act="marks">🧹 Убрать отметки игроков</button></p>`;
     } else if (this.tab === "reveal") {
       const groups = {};
       for (const it of I.reveal) (groups[it.group] ??= []).push(it);
@@ -435,7 +464,8 @@ class IslePanel extends ApplicationV2 {
         <p class="hint">Видео сначала залей в Data/labirint_ordena/.</p>
         <p><button data-act="echo">🌀 Собрать Пещеру Эха (Явь и Сон)</button></p>
         <p class="hint">Карты в Data/peshera_eha/.</p>
-        <p><button data-act="tables">🎲 Создать случайные таблицы острова (16)</button></p>`;
+        <p><button data-act="tables">🎲 Создать случайные таблицы острова (16)</button></p>
+        <p class="hint">Повторное нажатие создаёт только недостающие — твои правки в таблицах сохраняются.</p>`;
     }
     el.innerHTML = tabs + `<div class="isle-body">${body}</div>`;
     return el;
@@ -457,6 +487,16 @@ class IslePanel extends ApplicationV2 {
         await saveState(st);
       }
       if (name === "hours") { const st = getState(); st.hours = 0; await saveState(st); }
+      if (name === "marks") {
+        const all = canvas.scene.drawings.filter((d) => d.getFlag(MOD, "mark"));
+        if (!all.length) ui.notifications.info("Отметок игроков нет.");
+        else {
+          const by = {}; all.forEach((d) => { const n = game.users.get(d.getFlag(MOD, "by"))?.name ?? "?"; by[n] = (by[n] ?? 0) + 1; });
+          const ok = await foundry.applications.api.DialogV2.confirm({ window: { title: "Убрать отметки игроков?" },
+            content: `<p>Удалить ${all.length} отметок: ${Object.entries(by).map(([n, k]) => `${esc(n)} — ${k}`).join(", ")}.</p>` });
+          if (ok) await canvas.scene.deleteEmbeddedDocuments("Drawing", all.map((d) => d.id));
+        }
+      }
       if (name === "reset") {
         const ok = await foundry.applications.api.DialogV2.confirm({ window: { title: "Сбросить исследование?" }, content: "<p>Карточки игроков снова станут «Неизведанные земли» везде, кроме места крушения.</p>" });
         if (ok) { const st = getState(); st.explored = ["18,14", "18,15"]; await saveState(st); }
@@ -516,6 +556,10 @@ function onDblClick(ev) {
 
 Hooks.once("init", () => {
   game.modules.get(MOD).api = { importIsland, openPanel, newDay, liveFit, openBook, buildLabyrinth, buildEcho, buildTables };
+  game.settings.register(MOD, "autoRoll", { name: "Автоброски в пути", hint: "Когда партия входит в опасный гекс — бросок «Когда бросать» и нужной таблицы. Бой видит только мастер, остальное — все.",
+    scope: "world", config: true, type: Boolean, default: true });
+  game.settings.register(MOD, "timeSync", { name: "Синхронизировать игровое время", hint: "Часы пути двигают время мира (его показывают Simple Timekeeping и другие календари). «Новый день» мотает до 6:00.",
+    scope: "world", config: true, type: Boolean, default: true });
   game.settings.register(MOD, "fx", { name: "Анимации острова", hint: "Облака, блики на воде, светлячки, подсветка гекса. Выключи, если тормозит.",
     scope: "client", config: true, type: Boolean, default: true, onChange: () => startFX() });
 });
