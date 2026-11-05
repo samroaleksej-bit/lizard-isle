@@ -2,6 +2,7 @@
 import { openBook, toggleBook, refreshBook, logEntry, toast } from "./book.js";
 import { buildLabyrinth } from "./labyrinth.js";
 import { buildEcho } from "./echo.js";
+import { buildTables } from "./tables.js";
 import { startFX, stopFX, refreshPools, hoverAt, pingHex, weatherFor } from "./fx.js";
 
 export const MOD = "lizard-isle";
@@ -433,7 +434,8 @@ class IslePanel extends ApplicationV2 {
         <p><button data-act="labyrinth">🕯 Собрать Лабиринт Ордена (20 сцен)</button></p>
         <p class="hint">Видео сначала залей в Data/labirint_ordena/.</p>
         <p><button data-act="echo">🌀 Собрать Пещеру Эха (Явь и Сон)</button></p>
-        <p class="hint">Карты в Data/peshera_eha/.</p>`;
+        <p class="hint">Карты в Data/peshera_eha/.</p>
+        <p><button data-act="tables">🎲 Создать случайные таблицы острова (16)</button></p>`;
     }
     el.innerHTML = tabs + `<div class="isle-body">${body}</div>`;
     return el;
@@ -446,6 +448,7 @@ class IslePanel extends ApplicationV2 {
       if (name === "import") await importIsland();
       if (name === "labyrinth") await buildLabyrinth();
       if (name === "echo") await buildEcho();
+      if (name === "tables") await buildTables();
       if (name === "newday") await newDay();
       if (name === "party") {
         const t = canvas.tokens.controlled[0];
@@ -512,7 +515,7 @@ function onDblClick(ev) {
 }
 
 Hooks.once("init", () => {
-  game.modules.get(MOD).api = { importIsland, openPanel, newDay, liveFit, openBook, buildLabyrinth, buildEcho };
+  game.modules.get(MOD).api = { importIsland, openPanel, newDay, liveFit, openBook, buildLabyrinth, buildEcho, buildTables };
   game.settings.register(MOD, "fx", { name: "Анимации острова", hint: "Облака, блики на воде, светлячки, подсветка гекса. Выключи, если тормозит.",
     scope: "client", config: true, type: Boolean, default: true, onChange: () => startFX() });
 });
