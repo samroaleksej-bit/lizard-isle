@@ -53,7 +53,7 @@ async function pins() {
 }
 
 export const Board = {
-  el: null, view: { tx: 0, ty: 0, s: 0.3 }, linkFrom: null, color: COLORS[0], showMap: false,
+  el: null, view: { tx: 0, ty: 0, s: 0.3 }, linkFrom: null, color: COLORS[0], showMap: false, side: true, actorIdx: null,
   toggle() { this.el ? this.close() : this.open(); },
   close() { this.el?.remove(); this.el = null; },
   open() {
@@ -61,19 +61,30 @@ export const Board = {
     el.id = "isle-board";
     try { const p = JSON.parse(localStorage.getItem(`${MOD}.boardWin`)); if (p) Object.assign(el.style, { left: p.l + "px", top: p.t + "px", width: p.w + "px", height: p.h + "px" }); } catch (e) {}
     el.innerHTML = `
-      <header><b>🧵 Доска экспедиции</b><span class="bd-hint">Тащи актёра из списка — карточка NPC. Двойной клик — заметка. ПКМ — удалить.</span><a data-x="close" title="Закрыть">✕</a></header>
+      <header><b>🧵 Доска экспедиции</b><span class="bd-hint">Слева — находки и поиск актёров: тащи на доску. Двойной клик — заметка. ПКМ — удалить.</span><a data-x="close" title="Закрыть">✕</a></header>
       <nav>
         <button data-x="note">＋ Заметка</button>
         <button data-x="link" title="Нажми карточку, потом вторую">🧵 Нить</button>
         <span class="bd-colors">${COLORS.map((c) => `<i data-c="${c}" style="background:${c}"></i>`).join("")}</span>
+        <button data-x="side" class="${this.side ? "on" : ""}">📚 Находки и актёры</button>
         <button data-x="map">🗺 Карта</button>
         <button data-x="fit">⤢ Всё</button>
         ${game.user.isGM ? `<button data-x="clear" class="bd-danger">Очистить</button>` : ""}
       </nav>
-      <div class="bd-view"><div class="bd-world"></div></div>`;
+      <div class="bd-body">
+        <aside class="bd-side${this.side ? "" : " off"}">
+          <div class="bd-stabs"><a data-st="finds" class="on">🔎 Находки</a><a data-st="actors">👤 Актёры</a></div>
+          <div class="bd-sp" data-sp="finds"><div class="bd-list" data-list="finds"></div></div>
+          <div class="bd-sp" data-sp="actors" hidden><input type="search" placeholder="Поиск актёра: зомби, гоблин…" data-q>
+            <div class="bd-list" data-list="actors"><p class="bd-empty">Введи хотя бы 2 буквы. Ищу в актёрах мира и компендиумах.</p></div></div>
+          <p class="bd-shint">Перетащи на доску или кликни — появится карточка.</p>
+        </aside>
+        <div class="bd-view"><div class="bd-world"></div></div>
+      </div>`;
     document.body.appendChild(el);
     this.el = el;
     this.bind();
+    this.bindSide();
     this.fit();
     this.render();
   },
@@ -104,6 +115,7 @@ export const Board = {
       ${Object.values(d.cards ?? {}).map((c) => `<div class="bd-card bd-${c.type}${this.linkFrom === c.id ? " bd-sel" : ""}" data-id="${c.id}" style="left:${c.x}px;top:${c.y}px;--bd-c:${c.color ?? "#d9a94a"}">
           ${c.img ? `<img src="${esc(c.img)}" draggable="false">` : ""}<b>${esc(c.name ?? "")}</b>${c.text ? `<p>${esc(c.text)}</p>` : ""}
           <small>${esc(game.users.get(c.by)?.name ?? "")}</small></div>`).join("")}`;
+    this.renderFinds();
     this.el.querySelector("[data-x=link]").classList.toggle("on", this.linkFrom !== null);
     this.el.querySelectorAll(".bd-colors i").forEach((i) => i.classList.toggle("on", i.dataset.c === this.color));
   },
@@ -144,6 +156,7 @@ export const Board = {
       const x = b.dataset.x;
       if (x === "note") { const v = view.getBoundingClientRect(); this.addNote(this.toWorld({ clientX: v.left + v.width / 2, clientY: v.top + v.height / 2 })); }
       if (x === "link") { this.linkFrom = this.linkFrom === null ? "" : null; this.render(); }
+      if (x === "side") { this.side = !this.side; b.classList.toggle("on", this.side); el.querySelector(".bd-side").classList.toggle("off", !this.side); }
       if (x === "map") { this.showMap = !this.showMap; this.render(); }
       if (x === "fit") this.fit();
       if (x === "clear") foundry.applications.api.DialogV2.confirm({ window: { title: "Очистить доску?" }, content: "<p>Удалить все карточки и нити? Места на схеме останутся.</p>" }).then((ok) => ok && send({ t: "clear" }));
@@ -195,11 +208,64 @@ export const Board = {
     view.addEventListener("drop", async (ev) => {
       ev.preventDefault();
       let d; try { d = JSON.parse(ev.dataTransfer.getData("text/plain")); } catch (e) { return; }
-      const doc = d?.uuid ? await fromUuid(d.uuid) : null; if (!doc) return;
       const at = this.toWorld(ev);
+      if (d?.isle) return this.addFrom(d, at);
+      const doc = d?.uuid ? await fromUuid(d.uuid) : null; if (!doc) return;
       if (doc.documentName === "Actor") send({ t: "add", card: { id: uid(), type: "npc", name: doc.name, img: doc.img, actor: doc.uuid, x: at.x, y: at.y, color: this.color } });
       else send({ t: "add", card: { id: uid(), type: "note", name: doc.name, text: "", x: at.x, y: at.y, color: this.color } });
     });
+  },
+  centre() { const v = this.el.querySelector(".bd-view").getBoundingClientRect(); return this.toWorld({ clientX: v.left + v.width / 2, clientY: v.top + v.height / 2 }); },
+  addFrom(d, at) {
+    if (d.isle === "find") send({ t: "add", card: { id: uid(), type: "find", name: d.name, img: d.img, find: d.key, x: at.x, y: at.y, color: this.color } });
+    if (d.isle === "actor") send({ t: "add", card: { id: uid(), type: "npc", name: d.name, img: d.img, x: at.x, y: at.y, color: this.color } });
+  },
+  async renderFinds() {
+    const box = this.el?.querySelector("[data-list=finds]"); if (!box) return;
+    const isle = await import("./isle.js");
+    const I = await isle.island();
+    const st = isle.getState(game.scenes.find((x) => x.getFlag(MOD, "isle")));
+    const items = (st.revealed ?? []).map((r) => ({ ...I.reveal.find((x) => x.key === r.key), name: r.name, key: r.key })).filter((x) => x.group !== "Квесты");
+    box.innerHTML = items.length ? items.map((x) => this.row({ isle: "find", key: x.key, name: x.name, img: x.img ? `${ROOT}/assets/${x.img}` : "icons/svg/book.svg" }, x.group)).join("")
+      : `<p class="bd-empty">Пока ничего не открыто игрокам.</p>`;
+  },
+  row(d, sub) {
+    return `<div class="bd-row" draggable="true" data-drag="${esc(JSON.stringify(d))}"><img src="${esc(d.img)}"><span><b>${esc(d.name)}</b>${sub ? `<small>${esc(sub)}</small>` : ""}</span></div>`;
+  },
+  async actorIndex() {
+    if (this.actorIdx) return this.actorIdx;
+    const out = game.actors.filter((a) => a.visible).map((a) => ({ name: a.name, img: a.img, src: "Мир", cr: a.system?.details?.cr, type: a.system?.details?.type?.value }));
+    for (const pack of game.packs.filter((p) => p.documentName === "Actor" && p.visible)) {
+      try {
+        const idx = await pack.getIndex({ fields: ["img", "system.details.cr", "system.details.type.value"] });
+        for (const e of idx) out.push({ name: e.name, img: e.img, src: pack.metadata.label, cr: e.system?.details?.cr, type: e.system?.details?.type?.value });
+      } catch (e) {}
+    }
+    return (this.actorIdx = out);
+  },
+  async searchActors(q) {
+    const box = this.el?.querySelector("[data-list=actors]"); if (!box) return;
+    q = q.trim().toLowerCase();
+    if (q.length < 2) return box.innerHTML = `<p class="bd-empty">Введи хотя бы 2 буквы. Ищу в актёрах мира и компендиумах.</p>`;
+    box.innerHTML = `<p class="bd-empty">Ищу…</p>`;
+    const all = await this.actorIndex();
+    const crS = (c) => c === undefined || c === null || c === "" ? "" : `КО ${c === 0.125 ? "1/8" : c === 0.25 ? "1/4" : c === 0.5 ? "1/2" : c}`;
+    const hits = all.filter((a) => a.name.toLowerCase().includes(q)).sort((a, b) => a.name.toLowerCase().indexOf(q) - b.name.toLowerCase().indexOf(q) || a.name.length - b.name.length).slice(0, 60);
+    box.innerHTML = hits.length ? hits.map((a) => this.row({ isle: "actor", name: a.name, img: a.img || "icons/svg/mystery-man.svg" },
+      game.user.isGM ? [crS(a.cr), a.type, a.src].filter(Boolean).join(" · ") : a.src)).join("") : `<p class="bd-empty">Ничего не нашёл.</p>`;
+  },
+  bindSide() {
+    const side = this.el.querySelector(".bd-side");
+    side.querySelectorAll("[data-st]").forEach((a) => a.onclick = () => {
+      side.querySelectorAll("[data-st]").forEach((b) => b.classList.toggle("on", b === a));
+      side.querySelectorAll("[data-sp]").forEach((p) => p.hidden = p.dataset.sp !== a.dataset.st);
+      if (a.dataset.st === "actors") side.querySelector("[data-q]").focus(); else this.renderFinds();
+    });
+    let t; side.querySelector("[data-q]").addEventListener("input", (e) => { clearTimeout(t); t = setTimeout(() => this.searchActors(e.target.value), 200); });
+    side.addEventListener("dragstart", (ev) => { const r = ev.target.closest("[data-drag]"); if (r) ev.dataTransfer.setData("text/plain", r.dataset.drag); });
+    side.addEventListener("click", (ev) => { const r = ev.target.closest("[data-drag]"); if (r) { const c = this.centre(); this.addFrom(JSON.parse(r.dataset.drag), { x: c.x + (Math.random() - .5) * 600, y: c.y + (Math.random() - .5) * 400 }); }; });
+    side.addEventListener("keydown", (ev) => ev.stopPropagation());
+    this.renderFinds();
   },
   saveWin() { if (!this.el) return; const r = this.el.getBoundingClientRect(); try { localStorage.setItem(`${MOD}.boardWin`, JSON.stringify({ l: r.left, t: r.top, w: r.width, h: r.height })); } catch (e) {} }
 };
