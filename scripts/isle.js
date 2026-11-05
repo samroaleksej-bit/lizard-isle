@@ -3,6 +3,7 @@ import { openBook, toggleBook, refreshBook, logEntry, toast } from "./book.js";
 import { buildLabyrinth } from "./labyrinth.js";
 import { buildEcho } from "./echo.js";
 import { buildTables, hasTables, rollHex } from "./tables.js";
+import { registerCalendar, parts, fmtDate, setDate } from "./calendar.js";
 import { startFX, stopFX, refreshPools, hoverAt, pingHex, weatherFor } from "./fx.js";
 
 export const MOD = "lizard-isle";
@@ -349,6 +350,30 @@ async function onTokenMoved(doc, changes) {
   }
 }
 
+async function dateDialog() {
+  const st = getState(), p = parts(), cal = game.time.calendar;
+  const months = (cal?.months?.values ?? []).map((m, i) => `<option value="${i}" ${p && p.month === i ? "selected" : ""}>${esc(m.name)}</option>`).join("");
+  const res = await foundry.applications.api.DialogV2.prompt({
+    window: { title: "День экспедиции и дата" },
+    content: `<p><label>День экспедиции <input type="number" name="day" min="1" value="${st.day}" style="width:80px"></label></p>
+      <p><label>Часов в пути сегодня <input type="number" name="hours" min="0" value="${st.hours}" style="width:80px"></label></p>
+      <hr><p><b>Дата мира</b> (её видит Simple Timekeeping)</p>
+      <p><label>Число <input type="number" name="d" min="1" max="31" value="${p?.date ?? 1}" style="width:60px"></label>
+         <select name="m">${months}</select>
+         <label>год <input type="number" name="y" value="${p?.year ?? 1279}" style="width:80px"></label>
+         <label>час <input type="number" name="h" min="0" max="23" value="${p?.hour ?? 6}" style="width:60px"></label></p>`,
+    ok: { label: "Сохранить", callback: (ev, btn) => { const f = btn.form.elements; return { day: +f.day.value, hours: +f.hours.value, d: +f.d.value, m: +f.m.value, y: +f.y.value, h: +f.h.value }; } },
+    rejectClose: false
+  });
+  if (!res) return;
+  st.day = Math.max(1, res.day || 1); st.hours = Math.max(0, res.hours || 0);
+  await saveState(st);
+  if (cal && (!p || p.year !== res.y || p.month !== res.m || p.date !== res.d || p.hour !== res.h)) {
+    try { await setDate({ year: res.y, month: res.m, day: res.d, hour: res.h }); } catch (e) { ui.notifications.warn("Дату мира поменять не вышло: " + e.message); }
+  }
+  updateClock();
+}
+
 async function newDay() {
   const I = await island();
   const st = getState();
@@ -439,8 +464,9 @@ class IslePanel extends ApplicationV2 {
     } else if (this.tab === "travel") {
       const party = st.party ? canvas.scene.tokens.get(st.party) : null;
       const pos = st.lastHex ? st.lastHex.split(",").map(Number) : null;
-      body = `<div class="isle-big"><div><b>День ${st.day}</b><span>${st.hours} ч в пути сегодня${st.hours > 8 ? " · перегруз" : ""}</span></div>
+      body = `<div class="isle-big"><div><b>День ${st.day}</b><span>${st.hours} ч в пути сегодня${st.hours > 8 ? " · перегруз" : ""}</span><span class="mute">${esc(fmtDate(parts()))}</span></div>
           <button data-act="newday">☀ Новый день</button></div>
+        <p><button data-act="date">🗓 Изменить день и дату</button></p>
         <p><b>Погода на сцене:</b> <select data-weather>${[["", "ясно"], ["rain", "ливень"], ["rainStorm", "шторм"], ["fog", "туман"]]
           .map(([k, n]) => `<option value="${k}" ${(canvas.scene.weather ?? "") === k ? "selected" : ""}>${n}</option>`).join("")}</select></p>
         <p><b>Токен партии:</b> ${party ? esc(party.name) : "<span class='mute'>не выбран</span>"}${pos ? ` · сейчас ${coord(I, pos[0], pos[1])}` : ""}</p>
@@ -480,6 +506,7 @@ class IslePanel extends ApplicationV2 {
       if (name === "echo") await buildEcho();
       if (name === "tables") await buildTables();
       if (name === "newday") await newDay();
+      if (name === "date") await dateDialog();
       if (name === "party") {
         const t = canvas.tokens.controlled[0];
         if (!t) return ui.notifications.warn("Выдели токен партии на сцене.");
@@ -567,11 +594,7 @@ function dragBar(bar) {
 }
 function updateClock() {
   const el = document.querySelector("#isle-bar .isle-clock"); if (!el) return;
-  let txt = "";
-  try {
-    const c = game.time.calendar?.timeToComponents?.(game.time.worldTime) ?? game.time.components;
-    if (c) txt = `${String(c.hour ?? 0).padStart(2, "0")}:${String(c.minute ?? 0).padStart(2, "0")}`;
-  } catch (e) {}
+  const txt = fmtDate(parts());
   const st = isIsle() ? getState() : null;
   el.textContent = (st ? `День ${st.day}` : "") + (txt ? ` · ${txt}` : "");
   el.hidden = !el.textContent;
@@ -592,6 +615,7 @@ function onDblClick(ev) {
 
 Hooks.once("init", () => {
   game.modules.get(MOD).api = { importIsland, openPanel, newDay, liveFit, openBook, buildLabyrinth, buildEcho, buildTables };
+  registerCalendar();
   game.settings.register(MOD, "autoRoll", { name: "Автоброски в пути", hint: "Когда партия входит в опасный гекс — бросок «Когда бросать» и нужной таблицы. Бой видит только мастер, остальное — все.",
     scope: "world", config: true, type: Boolean, default: true });
   game.settings.register(MOD, "timeSync", { name: "Синхронизировать игровое время", hint: "Часы пути двигают время мира (его показывают Simple Timekeeping и другие календари). «Новый день» мотает до 6:00.",
