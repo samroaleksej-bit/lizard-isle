@@ -266,7 +266,10 @@ function placeWindow(el) {
   // не даём утащить книгу за край экрана целиком
   POS.left = Math.max(-w + 120, Math.min(window.innerWidth - 120, POS.left));
   POS.top = Math.max(0, Math.min(window.innerHeight - 60, POS.top));
-  Object.assign(el.style, { position: "fixed", left: `${POS.left}px`, top: `${POS.top}px`, width: `${w}px`, height: `${h}px`, margin: "0" });
+  Object.assign(el.style, { position: "fixed", left: `${POS.left}px`, top: `${POS.top}px`, width: `${w}px`, height: `${h}px`, maxHeight: `${h}px`, margin: "0" });
+  // жёстко задаём высоту книги в пикселях — чтобы стили Foundry не растягивали её под весь текст
+  const bk = el.querySelector(".xb-book"); if (bk) Object.assign(bk.style, { height: `${h}px`, width: `${w}px` });
+  const wc = el.querySelector(".window-content"); if (wc) Object.assign(wc.style, { height: `${h}px`, maxHeight: `${h}px`, overflow: "visible" });
   if (!el.style.zIndex) toFront(el);
 }
 
