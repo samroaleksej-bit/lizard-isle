@@ -529,8 +529,9 @@ function renderBar() {
     btns.push(`<button data-b="pins" title="Показать или спрятать пины на карте">📍 Пины</button>`);
     btns.push(`<button data-b="help" title="Как пользоваться">?</button>`);
   }
-  bar.innerHTML = btns.join("");
+  bar.innerHTML = `<span class="isle-grip" title="Зажми и тащи. Двойной клик — вернуть на место">⠿</span>` + btns.join("") + `<span class="isle-clock" title="Время мира"></span>`;
   document.body.appendChild(bar);
+  placeBar(bar); dragBar(bar); updateClock();
   bar.querySelector("[data-b=panel]")?.addEventListener("click", openPanel);
   bar.querySelector("[data-b=book]")?.addEventListener("click", () => toggleBook());
   bar.querySelector("[data-b=diary]")?.addEventListener("click", () => game.journal.get(getState().diaryId)?.sheet.render(true));
@@ -541,6 +542,41 @@ function renderBar() {
   });
   bar.querySelector("[data-b=help]")?.addEventListener("click", () => ui.notifications.info("Двойной клик по гексу — что там. Shift + двойной клик — поставить отметку. «Дневник» — всё, что нашла партия.", { permanent: false }));
 }
+
+/* плашку можно таскать; позиция своя у каждого игрока */
+const BAR_KEY = `${MOD}.barPos`;
+function placeBar(bar) {
+  let p = null; try { p = JSON.parse(localStorage.getItem(BAR_KEY)); } catch (e) {}
+  if (!p) return;
+  bar.style.transform = "none";
+  bar.style.left = Math.min(Math.max(0, p.x), innerWidth - 80) + "px";
+  bar.style.top = Math.min(Math.max(0, p.y), innerHeight - 40) + "px";
+}
+function dragBar(bar) {
+  const grip = bar.querySelector(".isle-grip");
+  grip.addEventListener("dblclick", () => { try { localStorage.removeItem(BAR_KEY); } catch (e) {} bar.style.transform = ""; bar.style.left = ""; bar.style.top = ""; });
+  grip.addEventListener("pointerdown", (ev) => {
+    ev.preventDefault(); grip.setPointerCapture(ev.pointerId);
+    const r = bar.getBoundingClientRect(), dx = ev.clientX - r.left, dy = ev.clientY - r.top;
+    bar.style.transform = "none"; bar.style.left = r.left + "px"; bar.style.top = r.top + "px";
+    const move = (e) => { bar.style.left = Math.min(Math.max(0, e.clientX - dx), innerWidth - 80) + "px"; bar.style.top = Math.min(Math.max(0, e.clientY - dy), innerHeight - 40) + "px"; };
+    const up = () => { grip.removeEventListener("pointermove", move); grip.removeEventListener("pointerup", up);
+      try { localStorage.setItem(BAR_KEY, JSON.stringify({ x: parseInt(bar.style.left), y: parseInt(bar.style.top) })); } catch (e) {} };
+    grip.addEventListener("pointermove", move); grip.addEventListener("pointerup", up);
+  });
+}
+function updateClock() {
+  const el = document.querySelector("#isle-bar .isle-clock"); if (!el) return;
+  let txt = "";
+  try {
+    const c = game.time.calendar?.timeToComponents?.(game.time.worldTime) ?? game.time.components;
+    if (c) txt = `${String(c.hour ?? 0).padStart(2, "0")}:${String(c.minute ?? 0).padStart(2, "0")}`;
+  } catch (e) {}
+  const st = isIsle() ? getState() : null;
+  el.textContent = (st ? `День ${st.day}` : "") + (txt ? ` · ${txt}` : "");
+  el.hidden = !el.textContent;
+}
+Hooks.on("updateWorldTime", () => updateClock());
 
 /* ---------------- события ---------------- */
 function onDblClick(ev) {

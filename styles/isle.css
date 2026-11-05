@@ -54,3 +54,7 @@
 .isle-chat h3 { margin: 0 0 4px; border-bottom: 1px solid rgba(120,80,30,.35); font-size: 18px; font-weight: 700; color: #3a2414; }
 .isle-chat ul { margin: 0; padding-left: 16px; } .isle-chat li { margin-bottom: 6px; }
 .isle-chat .mute { color: #7a6045; }
+
+#isle-bar .isle-grip { cursor: grab; display: flex; align-items: center; padding: 0 4px 0 2px; color: #e9d3a1; font-size: 18px; user-select: none; touch-action: none; }
+#isle-bar .isle-grip:active { cursor: grabbing; }
+#isle-bar .isle-clock { display: flex; align-items: center; padding: 0 8px 0 4px; color: #f3e2b8; font-family: "XB Serif", Georgia, serif; font-weight: 700; font-size: 15px; white-space: nowrap; }
