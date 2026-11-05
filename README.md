@@ -23,3 +23,6 @@ https://github.com/samroaleksej-bit/lizard-isle/releases/latest/download/module.
 Настройки сцены → Сетка: тип «Шестигранники, нечётные ряды», размер 140. Если всё равно съехало, попробуй «чётные ряды».
 
 Шрифты Cormorant Garamond и Marck Script — SIL Open Font License (fonts/OFL.txt).
+
+## Звуки
+Звуки журнала и доски: [Kenney](https://kenney.nl) RPG Audio, Interface Sounds, Impact Sounds (CC0) + синтез. Лицензия: `sounds/KENNEY-CC0.txt`.

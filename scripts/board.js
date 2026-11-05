@@ -3,6 +3,7 @@
  * карточки NPC (перетащи актёра), заметки и нити-связи. Игроки правят доску, мастер хранит.
  */
 const MOD = "lizard-isle";
+import { sfx } from "./sfx.js";
 const ROOT = `modules/${MOD}`;
 const W = 3990, H = 2587, GW = 140, GR = GW / Math.sqrt(3);
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[m]));
@@ -34,7 +35,9 @@ export async function applyOp(op, userId) {
   }
   await game.settings.set(MOD, "board", d);
 }
+const OP_SFX = { add: "pin", link: "thread", unlink: "snip", del: "unpin", clear: "crumple" };
 function send(op) {
+  if (OP_SFX[op.t]) sfx(op.t === "add" && op.card?.type === "note" ? "pen" : OP_SFX[op.t]);
   if (game.user.isGM) return applyOp(op, game.user.id);
   if (!game.users.activeGM) return ui.notifications.warn("Доска: нужен мастер онлайн, чтобы сохранить изменения.");
   game.socket.emit(`module.${MOD}`, { action: "board", op, userId: game.user.id });

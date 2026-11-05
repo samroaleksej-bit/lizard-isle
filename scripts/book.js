@@ -1,5 +1,6 @@
 // Полевой журнал экспедиции: задания фракций, находки, хроника, отношения с фракциями.
 import { MOD, island, getState, saveState, esc, coord, isIsle, openDiaryPage, pulseHex, hexCenter } from "./isle.js";
+import { sfx } from "./sfx.js";
 
 export const STATUS = {
   active: { n: "Взято", mark: "✒", stamp: "" },
@@ -29,7 +30,9 @@ export function toast({ title, sub = "", color = "#7a4a1c", icon = "📜", tab =
     el.addEventListener("click", () => { openBook(tab, sel); el.classList.add("out"); });
   }
   document.body.appendChild(el);
-  try { foundry.audio.AudioHelper.play({ src: "sounds/notify.wav", volume: 0.35, autoplay: true, loop: false }, false); } catch (e) {}
+  if (tab === "finds") sfx("find");
+  else if (tab === "quests") sfx(icon === "✔" ? "stamp" : icon === "✖" ? "fail" : "pen");
+  else try { foundry.audio.AudioHelper.play({ src: "sounds/notify.wav", volume: 0.35, autoplay: true, loop: false }, false); } catch (e) {}
   setTimeout(() => el.classList.add("out"), 5200);
   setTimeout(() => el.remove(), 6000);
 }
@@ -160,13 +163,13 @@ export class QuestBook extends ApplicationV2 {
     if (this._first) { book.classList.add("opening"); this._first = false; }
     if (turned) content.querySelector(".xb-turn")?.classList.add("flip");
     content.querySelector(".xb-close").onclick = () => this.close();
-    content.querySelectorAll("[data-tab]").forEach((a) => a.onclick = () => { this.view = { tab: a.dataset.tab, sel: null }; this._turn = true; this.render(); });
-    content.querySelectorAll("[data-q]").forEach((li) => li.onclick = () => { this.view.sel = li.dataset.q; this._turn = true; this.render(); });
-    content.querySelectorAll("[data-f]").forEach((li) => li.onclick = () => { this.view.sel = li.dataset.f; this._turn = true; this.render(); });
+    content.querySelectorAll("[data-tab]").forEach((a) => a.onclick = () => { sfx("tab"); sfx("page"); this.view = { tab: a.dataset.tab, sel: null }; this._turn = true; this.render(); });
+    content.querySelectorAll("[data-q]").forEach((li) => li.onclick = () => { sfx("page"); this.view.sel = li.dataset.q; this._turn = true; this.render(); });
+    content.querySelectorAll("[data-f]").forEach((li) => li.onclick = () => { sfx("page"); this.view.sel = li.dataset.f; this._turn = true; this.render(); });
     content.querySelector("[data-clearlog]")?.addEventListener("click", async () => {
       const ok = await foundry.applications.api.DialogV2.confirm({ window: { title: "Очистить хронику" }, content: "<p>Стереть все записи хроники экспедиции? Это не отменить.</p>" });
       if (!ok) return;
-      const st = getState(); st.log = []; await saveState(st); this.render();
+      sfx("crumple"); const st = getState(); st.log = []; await saveState(st); this.render();
     });
     content.querySelectorAll("[data-fopen]").forEach((b) => b.onclick = async () => {
       const m = await import("./isle.js"); const I = await island();
@@ -210,6 +213,7 @@ export class QuestBook extends ApplicationV2 {
   setPosition() { if (this.element) placeWindow(this.element); return this.position; }
 
   async close(options) {
+    sfx("close");
     const el = this.element?.querySelector(".xb-book");
     if (el) { el.classList.add("closing"); await new Promise((r) => setTimeout(r, 260)); }
     this._first = true;
@@ -236,7 +240,7 @@ function paginate(content) {
     bar.addEventListener("click", (e) => {
       const a = e.target.closest("[data-pg]"); if (!a) return;
       const n = Math.max(0, Math.min(total() - 1, cur() - 1 + Number(a.dataset.pg)));
-      pg.classList.remove("xb-flip"); void pg.offsetWidth; pg.classList.add("xb-flip");
+      sfx("page"); pg.classList.remove("xb-flip"); void pg.offsetWidth; pg.classList.add("xb-flip");
       pg.scrollTo({ top: n * step(), behavior: "auto" });
     });
     pg.addEventListener("scroll", upd, { passive: true });
@@ -268,6 +272,7 @@ export function openBook(tab, sel = null) {
   book ??= new QuestBook();
   if (tab) book.view = { tab, sel };
   if (book.rendered) { book._turn = true; book.render(); toFront(book.element); return; }
+  sfx("open");
   book.render({ force: true });
 }
 window.addEventListener("resize", () => { if (book?.rendered) placeWindow(book.element); });

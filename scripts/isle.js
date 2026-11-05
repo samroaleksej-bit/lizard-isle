@@ -6,6 +6,7 @@ import { buildTables, hasTables, rollHex } from "./tables.js";
 import { registerCalendar, parts, fmtDate, setDate } from "./calendar.js";
 import { ROAMERS, initRoam, stepRoam, drawRoam } from "./roam.js";
 import { Board, registerBoard, applyOp } from "./board.js";
+import { registerSfx } from "./sfx.js";
 import { startFX, stopFX, refreshPools, hoverAt, pingHex, weatherFor } from "./fx.js";
 
 export const MOD = "lizard-isle";
@@ -662,6 +663,7 @@ Hooks.once("init", () => {
   game.modules.get(MOD).api = { board: () => Board.toggle(), importIsland, openPanel, newDay, liveFit, openBook, buildLabyrinth, buildEcho, buildTables };
   registerCalendar();
   registerBoard();
+  registerSfx();
   game.settings.register(MOD, "autoRoll", { name: "Автоброски в пути", hint: "Когда партия входит в опасный гекс — бросок «Когда бросать» и нужной таблицы. Бой видит только мастер, остальное — все.",
     scope: "world", config: true, type: Boolean, default: true });
   game.settings.register(MOD, "roam", { name: "Бродячие боссы", hint: "Пожиратель троп и Речной левиафан ходят по острову, пока ходит партия. Их метки видит только мастер. Рядом — знаки игрокам, в одном гексе — бой.",
