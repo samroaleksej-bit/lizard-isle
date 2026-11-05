@@ -100,7 +100,7 @@ export const Board = {
       ${this.showMap ? `<img class="bd-map" src="${ROOT}/assets/island-map-hd.webp" draggable="false">` : `<div class="bd-map bd-blank"></div>`}
       <svg class="bd-svg" viewBox="0 0 ${W} ${H}">${th}</svg>
       ${P.map((p) => `<div class="bd-pin${p.hidden ? " bd-gmonly" : ""}${this.linkFrom === p.id ? " bd-sel" : ""}" data-id="${p.id}" style="left:${p.x}px;top:${p.y}px" title="${esc(p.group)}${p.hidden ? " · игроки не видят" : ""}">
-          ${p.img ? `<img class="bd-ph" src="${p.img}" draggable="false">` : `<span>${GROUP_ICON[p.group] ?? "•"}</span>`}<em>${esc(p.name)}</em></div>`).join("")}
+          <span>${GROUP_ICON[p.group] ?? "•"}</span><em>${esc(p.name)}</em></div>`).join("")}
       ${Object.values(d.cards ?? {}).map((c) => `<div class="bd-card bd-${c.type}${this.linkFrom === c.id ? " bd-sel" : ""}" data-id="${c.id}" style="left:${c.x}px;top:${c.y}px;--bd-c:${c.color ?? "#d9a94a"}">
           ${c.img ? `<img src="${esc(c.img)}" draggable="false">` : ""}<b>${esc(c.name ?? "")}</b>${c.text ? `<p>${esc(c.text)}</p>` : ""}
           <small>${esc(game.users.get(c.by)?.name ?? "")}</small></div>`).join("")}`;

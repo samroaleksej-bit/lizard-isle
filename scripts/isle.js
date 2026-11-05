@@ -416,12 +416,26 @@ async function newDay() {
 
 /* ---------------- раздатки (арт находок) ---------------- */
 export const handoutSrc = (item) => item?.img ? `${ROOT}/assets/${item.img}` : null;
-export function showHandout(item, share = false) {
+/* показать раздатку: оверлей у всех (broadcast) или только у себя */
+export function showHandout(item, broadcast = false) {
   const src = handoutSrc(item); if (!src) return;
-  const IP = foundry.applications.apps.ImagePopout ?? ImagePopout;
-  const pop = new IP({ src, window: { title: item.name }, caption: item.name, uuid: null, showTitle: true });
-  pop.render(true);
-  if (share && game.user.isGM) pop.shareImage?.();
+  const data = { src, name: item.name, sub: item.group ?? "" };
+  presentHandout(data);
+  if (broadcast && game.user.isGM) {
+    game.socket.emit(`module.${MOD}`, { action: "handout", data });
+    ChatMessage.create({ speaker: { alias: "Находка" },
+      content: `<div class="isle-chat isle-hchat"><h3>✦ ${esc(item.name)}</h3><img src="${src}" data-hsrc="${src}" data-hname="${esc(item.name)}"></div>` });
+  }
+}
+export function presentHandout({ src, name, sub }) {
+  document.getElementById("isle-handout")?.remove();
+  const el = document.createElement("div");
+  el.id = "isle-handout";
+  el.innerHTML = `<div class="ih-card"><small>${esc(sub || "Находка")}</small><img src="${src}" draggable="false"><b>${esc(name)}</b><i>клик — закрыть</i></div>`;
+  const close = () => { el.classList.add("out"); setTimeout(() => el.remove(), 350); removeEventListener("keydown", key); };
+  const key = (e) => { if (e.key === "Escape") close(); };
+  el.onclick = close; addEventListener("keydown", key);
+  document.body.append(el);
 }
 
 /* ---------------- открыть игрокам ---------------- */
@@ -433,7 +447,7 @@ async function revealItem(item) {
   const res = await D2.prompt({
     window: { title: `Открыть игрокам: ${item.name}` },
     content: `${handoutSrc(item) ? `<p><img src="${handoutSrc(item)}" style="width:100%;max-height:220px;object-fit:contain;border:0"></p>
-      <p><label><input type="checkbox" name="sh" checked> Показать картинку игрокам на весь экран</label></p>` : ""}<p><label>Название для игроков<br><input type="text" name="nm" value="${esc(item.name)}" style="width:100%"></label></p>
+      <p><label><input type="checkbox" name="sh" checked> Сразу показать картинку игрокам</label></p>` : ""}<p><label>Название для игроков<br><input type="text" name="nm" value="${esc(item.name)}" style="width:100%"></label></p>
       <p><label>Что узнают игроки<br><textarea name="tx" rows="5" style="width:100%">${esc(item.text)}</textarea></label></p>
       <p class="hint">Здесь нет твоих спойлеров — только то, что ты впишешь.</p>`,
     ok: { label: "Открыть", callback: (ev, btn) => ({ nm: btn.form.elements.nm.value.trim() || item.name, tx: btn.form.elements.tx.value.trim(), sh: !!btn.form.elements.sh?.checked }) },
@@ -509,7 +523,7 @@ class IslePanel extends ApplicationV2 {
       for (const it of I.reveal) (groups[it.group] ??= []).push(it);
       const open = new Set(st.revealed.map((x) => x.key));
       body = Object.entries(groups).map(([g, items]) => `<h3>${esc(g)}</h3><ul class="isle-rev">${items.map((it) =>
-        `<li class="${open.has(it.key) ? "open" : ""}">${it.img ? `<img class="isle-th" src="${handoutSrc(it)}" data-look="${it.key}" title="Посмотреть (Shift — показать игрокам)">` : ""}<span>${esc(it.name)} <em>${coord(I, it.at[0], it.at[1])}</em></span>${open.has(it.key)
+        `<li class="${open.has(it.key) ? "open" : ""}">${it.img ? `<img class="isle-th" src="${handoutSrc(it)}" data-look="${it.key}" title="Посмотреть самому">` : ""}<span>${esc(it.name)} <em>${coord(I, it.at[0], it.at[1])}</em></span>${it.img ? `<button data-showp="${it.key}" title="Показать картинку игрокам">👁</button>` : ""}${open.has(it.key)
           ? `<button data-hide="${it.key}">Скрыть</button>` : `<button data-reveal="${it.key}">Открыть</button>`}</li>`).join("")}</ul>`).join("");
     } else {
       body = `<p>Создаёт или обновляет сцену «Скрытые земли · Остров», журналы мастера (места, боссы, квесты, данжи, фракции, герои) и «Дневник экспедиции» для игроков.</p>
@@ -570,7 +584,10 @@ class IslePanel extends ApplicationV2 {
       const I = await island(); await revealItem(I.reveal.find((x) => x.key === b.dataset.reveal)); this.render();
     });
     content.querySelectorAll("[data-look]").forEach((b) => b.onclick = async (ev) => {
-      const I = await island(); showHandout(I.reveal.find((x) => x.key === b.dataset.look), ev.shiftKey);
+      const I = await island(); showHandout(I.reveal.find((x) => x.key === b.dataset.look), false);
+    });
+    content.querySelectorAll("[data-showp]").forEach((b) => b.onclick = async () => {
+      const I = await island(); showHandout(I.reveal.find((x) => x.key === b.dataset.showp), true);
     });
     content.querySelectorAll("[data-hide]").forEach((b) => b.onclick = async () => { await hideItem(b.dataset.hide); this.render(); });
   }
@@ -668,8 +685,12 @@ Hooks.once("init", () => {
 
 Hooks.once("ready", () => {
   island();
+  document.addEventListener("click", (ev) => {
+    const im = ev.target.closest?.("img[data-hsrc]"); if (im) presentHandout({ src: im.dataset.hsrc, name: im.dataset.hname, sub: "Находка" });
+  });
   game.socket.on(`module.${MOD}`, async (msg) => {
     if (msg.action === "toast") return toast(msg.data);
+    if (msg.action === "handout") return presentHandout(msg.data);
     if (msg.action === "pulse") { if (msg.sceneId === canvas.scene?.id) pingHex(msg.r, msg.c, msg.color); return; }
     if (!activeGM()) return;
     if (msg.action === "board") return applyOp(msg.op, msg.userId);
