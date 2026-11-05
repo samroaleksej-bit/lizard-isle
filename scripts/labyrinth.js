@@ -1,11 +1,11 @@
 /*
  * Лабиринт Ордена (М-25) — 20 сцен из анимированных тайлов Epic Quest «Tombs of the Forbidden Souls».
- * Видео в модуль не входят: мастер кладёт их на сервер в Data/labirint-ordena/ (имена файлов как в архиве).
+ * Видео в модуль не входят: мастер кладёт их на сервер в Data/labirint_ordena/ (имена файлов как в архиве).
  * Пины на сцене: «→ NN · Название» — двойной клик переносит всех на соседнюю сцену,
  * «⟳ …» — переключает вариант тайла (ловушка, тени, огненный череп).
  */
 const MOD = "lizard-isle";
-const DIR = "labirint-ordena";
+const DIR = "labirint_ordena";
 const FOLDER = "Лабиринт Ордена";
 const url = (p) => String(p).split("/").map(encodeURIComponent).join("/");
 const f = (name) => `${DIR}/${name}.mp4`;

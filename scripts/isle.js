@@ -430,7 +430,7 @@ class IslePanel extends ApplicationV2 {
         <p>Повторный запуск обновляет тексты и пины мастера. Открытое игрокам, исследованные гексы и отметки игроков сохраняются.</p>
         <p><button data-act="import">🌴 Импортировать / обновить остров</button></p>
         <p><button data-act="labyrinth">🕯 Собрать Лабиринт Ордена (20 сцен)</button></p>
-        <p class="hint">Видео сначала залей в Data/labirint-ordena/.</p>`;
+        <p class="hint">Видео сначала залей в Data/labirint_ordena/.</p>`;
     }
     el.innerHTML = tabs + `<div class="isle-body">${body}</div>`;
     return el;
