@@ -208,3 +208,7 @@
 .xb-toast.click { pointer-events: auto; cursor: pointer; }
 .xb-toast.click:hover .xb-paper { filter: brightness(1.05); }
 .xb-toast.click .xb-paper::after { content: "открыть в журнале →"; margin-left: 10px; align-self: flex-end; font-family: "XB Hand", cursive; font-size: 15px; color: #2c3f63; }
+
+.xb-photo{margin:4px auto 12px;padding:8px 8px 10px;background:#fbf5e6;box-shadow:0 3px 10px #0004;transform:rotate(-1.5deg);max-width:92%;position:relative}
+.xb-photo::before{content:"";position:absolute;top:-9px;left:50%;width:70px;height:20px;margin-left:-35px;background:#e9dcae99;transform:rotate(2deg);box-shadow:0 1px 2px #0002}
+.xb-photo img{display:block;width:100%;max-height:300px;object-fit:contain;border:0;cursor:zoom-in}

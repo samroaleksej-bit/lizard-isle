@@ -78,10 +78,12 @@ export function bookHTML(I, st, view, isGM) {
     left = `<h2 class="xb-h">Находки</h2>${found.length ? Object.entries(groups).map(([g, xs]) =>
       `<div class="xb-fac"><h4>${esc(g)}</h4><ul>${xs.map((x, i) => `<li data-f="${x.key}" class="${sel?.key === x.key ? "sel" : ""}" style="--i:${i}"><span class="xb-mk">✦</span>${esc(x.name)}</li>`).join("")}</ul></div>`).join("")
       : `<p class="xb-hand xb-empty">Остров ещё не открыл вам своих тайн.</p>`}`;
+    const art = I.reveal.find((r) => r.key === sel?.key)?.img;
     right = sel ? `<div class="xb-detail">
         <h2>${esc(sel.name)}</h2>
         <div class="xb-meta">${coord(I, sel.at[0], sel.at[1])}</div>
         <div class="xb-rule"></div>
+        ${art ? `<figure class="xb-photo"><img src="modules/${MOD}/assets/${art}" data-zoom="${esc(sel.name)}" draggable="false"></figure>` : ""}
         <div class="xb-text" data-pagetext="${sel.pageId}"></div>
         <p class="xb-loc">⌖ <a data-pan="${sel.at[0]},${sel.at[1]}">показать на карте</a> · <a data-page="${sel.pageId}">открыть в дневнике</a></p>
       </div>` : `<div class="xb-blank">❦</div>`;
@@ -155,6 +157,10 @@ export class QuestBook extends ApplicationV2 {
     content.querySelectorAll("[data-tab]").forEach((a) => a.onclick = () => { this.view = { tab: a.dataset.tab, sel: null }; this._turn = true; this.render(); });
     content.querySelectorAll("[data-q]").forEach((li) => li.onclick = () => { this.view.sel = li.dataset.q; this._turn = true; this.render(); });
     content.querySelectorAll("[data-f]").forEach((li) => li.onclick = () => { this.view.sel = li.dataset.f; this._turn = true; this.render(); });
+    content.querySelectorAll("[data-zoom]").forEach((im) => im.onclick = () => {
+      const IP = foundry.applications.apps.ImagePopout ?? ImagePopout;
+      new IP({ src: im.getAttribute("src"), window: { title: im.dataset.zoom } }).render(true);
+    });
     content.querySelectorAll("[data-pan]").forEach((a) => a.onclick = () => panTo(...a.dataset.pan.split(",").map(Number)));
     content.querySelectorAll("[data-page]").forEach((a) => a.onclick = () => openDiaryPage(a.dataset.page));
     content.querySelectorAll("[data-qs]").forEach((b) => b.onclick = () => setQuest(b.dataset.qid, b.dataset.qs));
@@ -164,7 +170,7 @@ export class QuestBook extends ApplicationV2 {
     if (pt) {
       const diary = game.journal.get(getState().diaryId);
       const page = diary?.pages.get(pt.dataset.pagetext);
-      pt.innerHTML = page?.text?.content ?? "";
+      pt.innerHTML = (page?.text?.content ?? "").replace(/<p><img[^>]*><\/p>/g, "");
     }
     // окно поверх всего: своё положение, перетаскивание за обложку, клик — на передний план
     const el = this.element;

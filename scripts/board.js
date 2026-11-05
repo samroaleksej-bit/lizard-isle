@@ -170,7 +170,7 @@ export const Board = {
         const mv = (e) => { node.style.left = ox + (e.clientX - sx) / this.view.s + "px"; node.style.top = oy + (e.clientY - sy) / this.view.s + "px"; };
         const up = (e) => { removeEventListener("pointermove", mv); removeEventListener("pointerup", up);
           if (Math.hypot(e.clientX - sx, e.clientY - sy) > 3) send({ t: "move", id, x: Math.round(parseFloat(node.style.left)), y: Math.round(parseFloat(node.style.top)) });
-          else if (id.startsWith("pin:")) this.look(id); };
+          else if (id.startsWith("pin:")) (async () => (await import("./book.js")).openBook("finds", id.slice(4)))(); };
         addEventListener("pointermove", mv); addEventListener("pointerup", up); return;
       }
       const { tx, ty } = this.view;
