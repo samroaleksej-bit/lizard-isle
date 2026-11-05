@@ -48,7 +48,7 @@ async function pins() {
   const moved = data().pins ?? {};
   return I.reveal.filter((x) => game.user.isGM || open.has(x.key)).map((x) => {
     const p = moved["pin:" + x.key] ?? hexXY(x.at[0], x.at[1]);
-    return { id: "pin:" + x.key, key: x.key, name: x.name, group: x.group, x: p.x, y: p.y, hidden: !open.has(x.key) };
+    return { id: "pin:" + x.key, key: x.key, name: x.name, group: x.group, img: x.img ? `${ROOT}/assets/${x.img}` : null, item: x, x: p.x, y: p.y, hidden: !open.has(x.key) };
   });
 }
 
@@ -100,12 +100,16 @@ export const Board = {
       ${this.showMap ? `<img class="bd-map" src="${ROOT}/assets/island-map-hd.webp" draggable="false">` : `<div class="bd-map bd-blank"></div>`}
       <svg class="bd-svg" viewBox="0 0 ${W} ${H}">${th}</svg>
       ${P.map((p) => `<div class="bd-pin${p.hidden ? " bd-gmonly" : ""}${this.linkFrom === p.id ? " bd-sel" : ""}" data-id="${p.id}" style="left:${p.x}px;top:${p.y}px" title="${esc(p.group)}${p.hidden ? " · игроки не видят" : ""}">
-          <span>${GROUP_ICON[p.group] ?? "•"}</span><em>${esc(p.name)}</em></div>`).join("")}
+          ${p.img ? `<img class="bd-ph" src="${p.img}" draggable="false">` : `<span>${GROUP_ICON[p.group] ?? "•"}</span>`}<em>${esc(p.name)}</em></div>`).join("")}
       ${Object.values(d.cards ?? {}).map((c) => `<div class="bd-card bd-${c.type}${this.linkFrom === c.id ? " bd-sel" : ""}" data-id="${c.id}" style="left:${c.x}px;top:${c.y}px;--bd-c:${c.color ?? "#d9a94a"}">
           ${c.img ? `<img src="${esc(c.img)}" draggable="false">` : ""}<b>${esc(c.name ?? "")}</b>${c.text ? `<p>${esc(c.text)}</p>` : ""}
           <small>${esc(game.users.get(c.by)?.name ?? "")}</small></div>`).join("")}`;
     this.el.querySelector("[data-x=link]").classList.toggle("on", this.linkFrom !== null);
     this.el.querySelectorAll(".bd-colors i").forEach((i) => i.classList.toggle("on", i.dataset.c === this.color));
+  },
+  async look(id) {
+    const p = (await pins()).find((x) => x.id === id); if (!p?.img) return;
+    (await import("./isle.js")).showHandout(p.item);
   },
   toWorld(ev) { const r = this.el.querySelector(".bd-view").getBoundingClientRect(); return { x: (ev.clientX - r.left - this.view.tx) / this.view.s, y: (ev.clientY - r.top - this.view.ty) / this.view.s }; },
   async addNote(at) {
@@ -165,7 +169,8 @@ export const Board = {
         const id = node.dataset.id, ox = parseFloat(node.style.left), oy = parseFloat(node.style.top);
         const mv = (e) => { node.style.left = ox + (e.clientX - sx) / this.view.s + "px"; node.style.top = oy + (e.clientY - sy) / this.view.s + "px"; };
         const up = (e) => { removeEventListener("pointermove", mv); removeEventListener("pointerup", up);
-          if (Math.hypot(e.clientX - sx, e.clientY - sy) > 3) send({ t: "move", id, x: Math.round(parseFloat(node.style.left)), y: Math.round(parseFloat(node.style.top)) }); };
+          if (Math.hypot(e.clientX - sx, e.clientY - sy) > 3) send({ t: "move", id, x: Math.round(parseFloat(node.style.left)), y: Math.round(parseFloat(node.style.top)) });
+          else if (id.startsWith("pin:")) this.look(id); };
         addEventListener("pointermove", mv); addEventListener("pointerup", up); return;
       }
       const { tx, ty } = this.view;

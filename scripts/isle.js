@@ -414,6 +414,16 @@ async function newDay() {
     content: `<div class="isle-chat"><p>Напоминание: вода — Выживание СЛ 10 (джунгли) / СЛ 14 (болото, топи). Ночёвка без укрытия — ещё одна проверка встречи. 3 дня без укрытия — портится одна вещь.</p></div>` });
 }
 
+/* ---------------- раздатки (арт находок) ---------------- */
+export const handoutSrc = (item) => item?.img ? `${ROOT}/assets/${item.img}` : null;
+export function showHandout(item, share = false) {
+  const src = handoutSrc(item); if (!src) return;
+  const IP = foundry.applications.apps.ImagePopout ?? ImagePopout;
+  const pop = new IP({ src, window: { title: item.name }, caption: item.name, uuid: null, showTitle: true });
+  pop.render(true);
+  if (share && game.user.isGM) pop.shareImage?.();
+}
+
 /* ---------------- открыть игрокам ---------------- */
 async function revealItem(item) {
   const st = getState();
@@ -422,16 +432,17 @@ async function revealItem(item) {
   const D2 = foundry.applications.api.DialogV2;
   const res = await D2.prompt({
     window: { title: `Открыть игрокам: ${item.name}` },
-    content: `<p><label>Название для игроков<br><input type="text" name="nm" value="${esc(item.name)}" style="width:100%"></label></p>
+    content: `${handoutSrc(item) ? `<p><img src="${handoutSrc(item)}" style="width:100%;max-height:220px;object-fit:contain;border:0"></p>
+      <p><label><input type="checkbox" name="sh" checked> Показать картинку игрокам на весь экран</label></p>` : ""}<p><label>Название для игроков<br><input type="text" name="nm" value="${esc(item.name)}" style="width:100%"></label></p>
       <p><label>Что узнают игроки<br><textarea name="tx" rows="5" style="width:100%">${esc(item.text)}</textarea></label></p>
       <p class="hint">Здесь нет твоих спойлеров — только то, что ты впишешь.</p>`,
-    ok: { label: "Открыть", callback: (ev, btn) => ({ nm: btn.form.elements.nm.value.trim() || item.name, tx: btn.form.elements.tx.value.trim() }) },
+    ok: { label: "Открыть", callback: (ev, btn) => ({ nm: btn.form.elements.nm.value.trim() || item.name, tx: btn.form.elements.tx.value.trim(), sh: !!btn.form.elements.sh?.checked }) },
     rejectClose: false
   });
   if (!res) return;
   const I = await island();
   const [page] = await diary.createEmbeddedDocuments("JournalEntryPage", [{ name: res.nm, type: "text", title: { show: true, level: 1 },
-    text: { format: 1, content: `<p><em>${coord(I, item.at[0], item.at[1])} · День ${st.day}</em></p>${res.tx ? `<p>${esc(res.tx).replace(/\n/g, "<br>")}</p>` : ""}` } }]);
+    text: { format: 1, content: `<p><em>${coord(I, item.at[0], item.at[1])} · День ${st.day}</em></p>${handoutSrc(item) ? `<p><img src="${handoutSrc(item)}" style="max-width:100%"></p>` : ""}${res.tx ? `<p>${esc(res.tx).replace(/\n/g, "<br>")}</p>` : ""}` } }]);
   const center = hexCenter(item.at[0], item.at[1]);
   const [note] = await canvas.scene.createEmbeddedDocuments("Note", [{ entryId: diary.id, pageId: page.id, x: Math.round(center.x), y: Math.round(center.y + 18),
     text: res.nm, texture: { src: item.icon, tint: item.tint }, iconSize: 44, fontSize: 22, textAnchor: CONST.TEXT_ANCHOR_POINTS.BOTTOM,
@@ -443,6 +454,7 @@ async function revealItem(item) {
   await saveState(st);
   toast({ title: `Находка: ${res.nm}`, sub: coord(I, item.at[0], item.at[1]), color: item.tint || "#7a4a1c", icon: "✦", tab: "finds", sel: item.key }, true);
   pulseHex(item.at[0], item.at[1], item.tint || "#ffd27a");
+  if (res.sh) showHandout({ ...item, name: res.nm }, true);
 }
 
 async function hideItem(key) {
@@ -497,7 +509,7 @@ class IslePanel extends ApplicationV2 {
       for (const it of I.reveal) (groups[it.group] ??= []).push(it);
       const open = new Set(st.revealed.map((x) => x.key));
       body = Object.entries(groups).map(([g, items]) => `<h3>${esc(g)}</h3><ul class="isle-rev">${items.map((it) =>
-        `<li class="${open.has(it.key) ? "open" : ""}"><span>${esc(it.name)} <em>${coord(I, it.at[0], it.at[1])}</em></span>${open.has(it.key)
+        `<li class="${open.has(it.key) ? "open" : ""}">${it.img ? `<img class="isle-th" src="${handoutSrc(it)}" data-look="${it.key}" title="Посмотреть (Shift — показать игрокам)">` : ""}<span>${esc(it.name)} <em>${coord(I, it.at[0], it.at[1])}</em></span>${open.has(it.key)
           ? `<button data-hide="${it.key}">Скрыть</button>` : `<button data-reveal="${it.key}">Открыть</button>`}</li>`).join("")}</ul>`).join("");
     } else {
       body = `<p>Создаёт или обновляет сцену «Скрытые земли · Остров», журналы мастера (места, боссы, квесты, данжи, фракции, герои) и «Дневник экспедиции» для игроков.</p>
@@ -556,6 +568,9 @@ class IslePanel extends ApplicationV2 {
     content.querySelector("[data-weather]")?.addEventListener("change", (e) => canvas.scene.update({ weather: e.target.value }));
     content.querySelectorAll("[data-reveal]").forEach((b) => b.onclick = async () => {
       const I = await island(); await revealItem(I.reveal.find((x) => x.key === b.dataset.reveal)); this.render();
+    });
+    content.querySelectorAll("[data-look]").forEach((b) => b.onclick = async (ev) => {
+      const I = await island(); showHandout(I.reveal.find((x) => x.key === b.dataset.look), ev.shiftKey);
     });
     content.querySelectorAll("[data-hide]").forEach((b) => b.onclick = async () => { await hideItem(b.dataset.hide); this.render(); });
   }
