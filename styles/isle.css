@@ -58,3 +58,37 @@
 #isle-bar .isle-grip { cursor: grab; display: flex; align-items: center; padding: 0 4px 0 2px; color: #e9d3a1; font-size: 18px; user-select: none; touch-action: none; }
 #isle-bar .isle-grip:active { cursor: grabbing; }
 #isle-bar .isle-clock { display: flex; align-items: center; padding: 0 8px 0 4px; color: #f3e2b8; font-family: "XB Serif", Georgia, serif; font-weight: 700; font-size: 15px; white-space: nowrap; }
+
+/* ── Доска экспедиции ── */
+#isle-board{position:fixed;left:8vw;top:8vh;width:min(1100px,84vw);height:min(720px,80vh);z-index:80;display:flex;flex-direction:column;
+  background:#1b140c;border:2px solid #8f6223;border-radius:6px;box-shadow:0 18px 60px rgba(0,0,0,.7);resize:both;overflow:hidden;min-width:420px;min-height:300px;font-family:"XB Serif",Georgia,serif;color:#f0e2c0}
+#isle-board header{display:flex;align-items:center;gap:12px;padding:6px 10px;background:linear-gradient(#5a3c1c,#3b2712);cursor:move;user-select:none}
+#isle-board header b{font-size:17px;white-space:nowrap}
+#isle-board .bd-hint{flex:1;font-size:12px;opacity:.7;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#isle-board header a{cursor:pointer;padding:0 4px}
+#isle-board nav{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:6px 10px;background:#2a1d10;border-bottom:1px solid #5a3c1c}
+#isle-board nav button{width:auto;line-height:24px;padding:0 10px;font-size:13px;background:#3b2712;color:#f0e2c0;border:1px solid #8f6223;cursor:pointer}
+#isle-board nav button.on{background:#c48f35;color:#2a1a0c}
+#isle-board nav .bd-danger{border-color:#a3242c;color:#f2a0a8}
+#isle-board .bd-colors{display:flex;gap:4px}
+#isle-board .bd-colors i{width:18px;height:18px;border-radius:50%;cursor:pointer;border:2px solid transparent}
+#isle-board .bd-colors i.on{border-color:#fff}
+#isle-board .bd-view{position:relative;flex:1;overflow:hidden;background:#120d07;cursor:grab}
+#isle-board .bd-world{position:absolute;left:0;top:0;width:3990px;height:2587px;transform-origin:0 0}
+#isle-board .bd-map{position:absolute;inset:0;width:3990px;height:2587px;opacity:.55;filter:sepia(.5);pointer-events:none}
+#isle-board .bd-blank{background:repeating-linear-gradient(0deg,#1e160c 0 79px,#2a1f12 79px 80px),repeating-linear-gradient(90deg,#1e160c 0 79px,#2a1f12 79px 80px);opacity:1}
+#isle-board .bd-svg{position:absolute;inset:0;width:3990px;height:2587px;overflow:visible}
+#isle-board .bd-thread{fill:none;stroke-width:14;stroke-linecap:round;opacity:.9;cursor:pointer;filter:drop-shadow(0 2px 2px rgba(0,0,0,.6))}
+#isle-board .bd-tl{font:700 50px "XB Serif",Georgia,serif;fill:#f6ecd2;text-anchor:middle;paint-order:stroke;stroke:#000;stroke-width:6px;cursor:pointer}
+#isle-board .bd-pin{position:absolute;transform:translate(-50%,-50%);display:flex;align-items:center;gap:8px;padding:10px 24px 10px 14px;border-radius:50px;
+  background:rgba(30,20,10,.92);border:5px solid #c48f35;font-size:52px;white-space:nowrap;cursor:pointer}
+#isle-board .bd-pin em{font-style:normal;font-size:46px}
+#isle-board .bd-pin.bd-gmonly{opacity:.45;border-style:dashed}
+#isle-board .bd-card{position:absolute;transform:translate(-50%,-50%) rotate(-1deg);width:380px;padding:18px;background:#f3e6c4;color:#2a1a0c;border-top:10px solid var(--bd-c);
+  box-shadow:0 8px 20px rgba(0,0,0,.6);font-size:34px;cursor:pointer;text-align:center}
+#isle-board .bd-card:nth-child(odd){transform:translate(-50%,-50%) rotate(1.5deg)}
+#isle-board .bd-card img{width:100%;aspect-ratio:1;object-fit:cover;border:2px solid #2a1a0c;margin-bottom:6px;pointer-events:none}
+#isle-board .bd-card b{display:block;font-size:40px;line-height:1.1}
+#isle-board .bd-card p{margin:8px 0 0;font-size:30px;line-height:1.25;text-align:left;white-space:pre-wrap}
+#isle-board .bd-card small{display:block;margin-top:8px;font-size:24px;opacity:.55}
+#isle-board .bd-sel{outline:6px solid #fff;outline-offset:4px}

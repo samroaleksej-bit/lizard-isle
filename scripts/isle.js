@@ -5,6 +5,7 @@ import { buildEcho } from "./echo.js";
 import { buildTables, hasTables, rollHex } from "./tables.js";
 import { registerCalendar, parts, fmtDate, setDate } from "./calendar.js";
 import { ROAMERS, initRoam, stepRoam, drawRoam } from "./roam.js";
+import { Board, registerBoard, applyOp } from "./board.js";
 import { startFX, stopFX, refreshPools, hoverAt, pingHex, weatherFor } from "./fx.js";
 
 export const MOD = "lizard-isle";
@@ -574,6 +575,7 @@ function renderBar() {
   if (isIsle()) {
     btns.push(`<button data-b="book" title="Журнал экспедиции: задания, находки, хроника">📜 Журнал</button>`);
     btns.push(`<button data-b="diary" title="Дневник экспедиции">📖 Дневник</button>`);
+    btns.push(`<button data-b="board" title="Доска экспедиции: места, улики, NPC и нити">🧵 Доска</button>`);
     btns.push(`<button data-b="pins" title="Показать или спрятать пины на карте">📍 Пины</button>`);
     btns.push(`<button data-b="help" title="Как пользоваться">?</button>`);
   }
@@ -583,6 +585,7 @@ function renderBar() {
   bar.querySelector("[data-b=panel]")?.addEventListener("click", openPanel);
   bar.querySelector("[data-b=book]")?.addEventListener("click", () => toggleBook());
   bar.querySelector("[data-b=diary]")?.addEventListener("click", () => game.journal.get(getState().diaryId)?.sheet.render(true));
+  bar.querySelector("[data-b=board]")?.addEventListener("click", () => Board.toggle());
   bar.querySelector("[data-b=pins]")?.addEventListener("click", async () => {
     const v = game.settings.get("core", "notesDisplayToggle");
     await game.settings.set("core", "notesDisplayToggle", !v);
@@ -635,8 +638,9 @@ function onDblClick(ev) {
 }
 
 Hooks.once("init", () => {
-  game.modules.get(MOD).api = { importIsland, openPanel, newDay, liveFit, openBook, buildLabyrinth, buildEcho, buildTables };
+  game.modules.get(MOD).api = { board: () => Board.toggle(), importIsland, openPanel, newDay, liveFit, openBook, buildLabyrinth, buildEcho, buildTables };
   registerCalendar();
+  registerBoard();
   game.settings.register(MOD, "autoRoll", { name: "Автоброски в пути", hint: "Когда партия входит в опасный гекс — бросок «Когда бросать» и нужной таблицы. Бой видит только мастер, остальное — все.",
     scope: "world", config: true, type: Boolean, default: true });
   game.settings.register(MOD, "roam", { name: "Бродячие боссы", hint: "Пожиратель троп и Речной левиафан ходят по острову, пока ходит партия. Их метки видит только мастер. Рядом — знаки игрокам, в одном гексе — бой.",
@@ -653,6 +657,7 @@ Hooks.once("ready", () => {
     if (msg.action === "toast") return toast(msg.data);
     if (msg.action === "pulse") { if (msg.sceneId === canvas.scene?.id) pingHex(msg.r, msg.c, msg.color); return; }
     if (!activeGM()) return;
+    if (msg.action === "board") return applyOp(msg.op, msg.userId);
     const scene = game.scenes.get(msg.sceneId);
     if (!scene) return;
     if (msg.action === "mark") await scene.createEmbeddedDocuments("Drawing", [msg.data]);
@@ -675,5 +680,5 @@ Hooks.on("canvasTearDown", () => stopFX());
 Hooks.on("updateToken", (doc, changes) => { onTokenMoved(doc, changes); });
 Hooks.on("updateScene", (scene, changes) => {
   if (scene.id !== canvas.scene?.id) return;
-  if (foundry.utils.hasProperty(changes, `flags.${MOD}`)) { renderBar(); if (panel?.rendered) panel.render(); refreshBook(); refreshPools(); }
+  if (foundry.utils.hasProperty(changes, `flags.${MOD}`)) { renderBar(); if (panel?.rendered) panel.render(); refreshBook(); refreshPools(); if (Board.el) Board.render(); }
 });
