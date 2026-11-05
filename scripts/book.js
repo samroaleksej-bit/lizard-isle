@@ -195,8 +195,11 @@ export class QuestBook extends ApplicationV2 {
     // окно поверх всего: своё положение, перетаскивание за обложку, клик — на передний план
     const el = this.element;
     placeWindow(el);
+    // при первом открытии окно ещё не в документе — размеры появятся на следующем кадре
     paginate(content);
+    requestAnimationFrame(() => requestAnimationFrame(() => paginate(content)));
     content.querySelectorAll(".xb-page img").forEach((im) => !im.complete && im.addEventListener("load", () => paginate(content), { once: true }));
+    document.fonts?.ready?.then(() => paginate(content));
     el.onpointerdown = () => toFront(el);
     content.querySelector(".xb-cover").addEventListener("pointerdown", (e) => {
       if (e.button !== 0 || e.target.closest(".xb-page, button, a, input, select, .xb-ribbons")) return;
