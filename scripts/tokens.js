@@ -4,11 +4,15 @@ const norm = (s) => String(s ?? "").toLowerCase().replace(/ё/g, "е").replace(/
 const dir = (t) => `modules/${MOD}/assets/tokens/${t.slug}`;
 const one = (t, i) => `${dir(t)}/${i}.webp`;
 
+// Круглый токен с рамкой должен занимать ровно свои клетки. У актёров из компендиумов под динамическое кольцо
+// стоит масштаб картинки ×2 - без кольца он раздувает токен вдвое, поэтому возвращаем 1.
+const FIT = { "prototypeToken.ring.enabled": false, "prototypeToken.texture.scaleX": 1, "prototypeToken.texture.scaleY": 1 };
+
 /** Что записать в прототип токена: одна картинка или шаблон со случайным выбором. */
 function proto(t) {
   return t.n > 1
-    ? { "prototypeToken.texture.src": `${dir(t)}/*.webp`, "prototypeToken.randomImg": true, "prototypeToken.ring.enabled": false }
-    : { "prototypeToken.texture.src": one(t, 1), "prototypeToken.randomImg": false, "prototypeToken.ring.enabled": false };
+    ? { "prototypeToken.texture.src": `${dir(t)}/*.webp`, "prototypeToken.randomImg": true, ...FIT }
+    : { "prototypeToken.texture.src": one(t, 1), "prototypeToken.randomImg": false, ...FIT };
 }
 
 export async function applyTokens() {
@@ -52,7 +56,7 @@ export async function applyTokens() {
     const docs = copies.map(({ t, base }) => {
       const o = base.toObject(); delete o._id;
       o.name = t.name; o.folder = folder.id; o.flags = { ...(o.flags ?? {}), [MOD]: { token: t.slug } };
-      o.prototypeToken = { ...o.prototypeToken, name: t.name, randomImg: t.n > 1, texture: { ...o.prototypeToken.texture, src: t.n > 1 ? `${dir(t)}/*.webp` : one(t, 1) }, ring: { ...(o.prototypeToken.ring ?? {}), enabled: false } };
+      o.prototypeToken = { ...o.prototypeToken, name: t.name, randomImg: t.n > 1, texture: { ...o.prototypeToken.texture, scaleX: 1, scaleY: 1, src: t.n > 1 ? `${dir(t)}/*.webp` : one(t, 1) }, ring: { ...(o.prototypeToken.ring ?? {}), enabled: false } };
       return o;
     });
     await Actor.createDocuments(docs);
@@ -61,7 +65,7 @@ export async function applyTokens() {
   for (const { sc, tk, t } of placed) {
     const i = (turn.get(t.slug) ?? Math.floor(Math.random() * t.n)) % t.n; turn.set(t.slug, i + 1);
     if (!bySc.has(sc)) bySc.set(sc, []);
-    bySc.get(sc).push({ _id: tk.id, "texture.src": one(t, i + 1), "ring.enabled": false });
+    bySc.get(sc).push({ _id: tk.id, "texture.src": one(t, i + 1), "texture.scaleX": 1, "texture.scaleY": 1, "ring.enabled": false });
   }
   for (const [sc, ups] of bySc) await sc.updateEmbeddedDocuments("Token", ups);
   ui.notifications.info(`Остров: токены заменены у ${direct.length} актёров, создано копий ${copies.length}, обновлено токенов на сценах ${placed.length}.`);
