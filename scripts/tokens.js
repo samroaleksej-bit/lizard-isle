@@ -44,18 +44,28 @@ export async function applyTokens() {
   const ok = await foundry.applications.api.DialogV2.confirm({
     window: { title: "Токены мобов острова" },
     content: `<div style="max-height:55vh;overflow:auto">
-      <p><b>Заменю токен</b> у ${direct.length} актёров (портрет не трогаю):</p><ul>${li(direct.map(d => `${d.actor.name} → ${d.t.name}${d.t.n > 1 ? ` (${d.t.n} вариаций)` : ""}`))}</ul>
-      <p><b>Создам копии</b> в папке «${D.folder}» — ${copies.length}:</p><ul>${li(copies.map(c => `${c.t.name} — из «${c.base.name}»${c.t.n > 1 ? ` (${c.t.n} вариаций)` : ""}`))}</ul>
+      <p><b>Заменю токен</b> у ${direct.length} актёров (портрет не трогаю) и перенесу их в папки «${D.folder}» по группам:</p><ul>${li(direct.map(d => `${d.actor.name} → ${d.t.name}${d.t.n > 1 ? ` (${d.t.n} вариаций)` : ""}`))}</ul>
+      <p><b>Создам копии</b> в тех же папках — ${copies.length}:</p><ul>${li(copies.map(c => `${c.t.name} — из «${c.base.name}»${c.t.n > 1 ? ` (${c.t.n} вариаций)` : ""}`))}</ul>
       <p>Токенов этих актёров на сценах: ${placed.length} — получат случайную вариацию.</p></div>`
   });
   if (!ok) return;
 
-  for (const { t, actor } of direct) await actor.update(proto(t));
+  // папки: «Остров · мобы» → по группам
+  const root = game.folders.find(f => f.type === "Actor" && f.name === D.folder && !f.folder) ?? await Folder.create({ name: D.folder, type: "Actor", color: "#2f7a5b" });
+  const sub = new Map();
+  for (const [i, g] of (D.groups ?? []).entries()) {
+    sub.set(g, game.folders.find(f => f.type === "Actor" && f.name === g && f.folder?.id === root.id)
+      ?? await Folder.create({ name: g, type: "Actor", folder: root.id, sorting: "a", sort: (i + 1) * 100, color: "#2f7a5b" }));
+  }
+  const home = (t) => (sub.get(t.group) ?? root).id;
+  for (const { t, actor } of direct) await actor.update({ ...proto(t), folder: home(t) });
+  // копии, созданные раньше и лежащие в общей папке, тоже раскладываем
+  const old = game.actors.filter(a => a.getFlag(MOD, "token") && !direct.some(d => d.actor.id === a.id));
+  for (const a of old) { const t = D.tokens.find(x => x.slug === a.getFlag(MOD, "token")); if (t && a.folder?.id !== home(t)) await a.update({ folder: home(t) }); }
   if (copies.length) {
-    const folder = game.folders.find(f => f.type === "Actor" && f.name === D.folder) ?? await Folder.create({ name: D.folder, type: "Actor", color: "#2f7a5b" });
     const docs = copies.map(({ t, base }) => {
       const o = base.toObject(); delete o._id;
-      o.name = t.name; o.folder = folder.id; o.flags = { ...(o.flags ?? {}), [MOD]: { token: t.slug } };
+      o.name = t.name; o.folder = home(t); o.flags = { ...(o.flags ?? {}), [MOD]: { token: t.slug } };
       o.prototypeToken = { ...o.prototypeToken, name: t.name, randomImg: t.n > 1, texture: { ...o.prototypeToken.texture, scaleX: 1, scaleY: 1, src: t.n > 1 ? `${dir(t)}/*.webp` : one(t, 1) }, ring: { ...(o.prototypeToken.ring ?? {}), enabled: false } };
       return o;
     });
