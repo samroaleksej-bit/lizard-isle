@@ -3,6 +3,7 @@ import { openBook, toggleBook, refreshBook, logEntry, toast } from "./book.js";
 import { buildLabyrinth } from "./labyrinth.js";
 import { buildEcho } from "./echo.js";
 import { buildTables, hasTables, rollHex } from "./tables.js";
+import { applyTokens } from "./tokens.js";
 import { registerCalendar, parts, fmtDate, setDate } from "./calendar.js";
 import { ROAMERS, initRoam, stepRoam, drawRoam } from "./roam.js";
 import { Board, registerBoard, applyOp } from "./board.js";
@@ -524,7 +525,9 @@ class IslePanel extends ApplicationV2 {
         <p><button data-act="echo">🌀 Собрать Пещеру Эха (Явь и Сон)</button></p>
         <p class="hint">Карты в Data/peshera_eha/.</p>
         <p><button data-act="tables">🎲 Создать случайные таблицы острова (16)</button></p>
-        <p class="hint">Повторное нажатие создаёт только недостающие — твои правки в таблицах сохраняются.</p>`;
+        <p class="hint">Повторное нажатие создаёт только недостающие — твои правки в таблицах сохраняются.</p>
+        <p><button data-act="tokens">🎭 Раздать токены мобам острова</button></p>
+        <p class="hint">Ищет в мире существ из боевых таблиц и ставит им токены с вариациями. Портреты не трогает. Сначала покажет список.</p>`;
     }
     el.innerHTML = tabs + `<div class="isle-body">${body}</div>`;
     return el;
@@ -538,6 +541,7 @@ class IslePanel extends ApplicationV2 {
       if (name === "labyrinth") await buildLabyrinth();
       if (name === "echo") await buildEcho();
       if (name === "tables") await buildTables();
+      if (name === "tokens") await applyTokens();
       if (name === "newday") await newDay();
       if (name === "date") await dateDialog();
       if (name === "party") {
@@ -660,7 +664,7 @@ function onDblClick(ev) {
 }
 
 Hooks.once("init", () => {
-  game.modules.get(MOD).api = { board: () => Board.toggle(), importIsland, openPanel, newDay, liveFit, openBook, buildLabyrinth, buildEcho, buildTables };
+  game.modules.get(MOD).api = { board: () => Board.toggle(), importIsland, openPanel, newDay, liveFit, openBook, buildLabyrinth, buildEcho, buildTables, applyTokens };
   registerCalendar();
   registerBoard();
   registerSfx();
