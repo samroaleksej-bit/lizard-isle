@@ -2,21 +2,24 @@
 const MOD = "lizard-isle";
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
-/** Создаёт недостающие таблицы. Уже созданные (и отредактированные мастером) не трогает, если не попросить recreate. */
+/** Создаёт недостающие таблицы. Уже созданные (и отредактированные мастером) не трогает, если не попросить recreate или если у таблицы в модуле не вышла новая редакция (rev). */
 export async function buildTables({ recreate = false } = {}) {
   if (!game.user.isGM) return ui.notifications.warn("Только мастер.");
   const D = await (await fetch(`modules/${MOD}/data/tables.json`)).json();
   const folder = game.folders.find(f => f.type === "RollTable" && f.name === D.folder) ?? await Folder.create({ name: D.folder, type: "RollTable", color: "#2f7a5b" });
   const have = new Map(game.tables.filter(t => t.getFlag(MOD, "table")).map(t => [t.getFlag(MOD, "table"), t]));
   if (recreate && have.size) { await RollTable.deleteDocuments([...have.values()].map(t => t.id)); have.clear(); }
+  // таблицы, у которых в модуле вышла новая редакция (rev), заменяются целиком
+  const stale = D.tables.filter(t => t.rev && have.has(t.key) && (have.get(t.key).getFlag(MOD, "rev") ?? 1) < t.rev);
+  if (stale.length) { await RollTable.deleteDocuments(stale.map(t => have.get(t.key).id)); stale.forEach(t => have.delete(t.key)); }
   const docs = D.tables.filter(t => !have.has(t.key)).map((t, i) => ({
     name: t.name, folder: folder.id, sort: D.tables.indexOf(t) * 100, formula: t.formula, replacement: true, displayRoll: true,
-    description: t.note ?? "", img: "icons/svg/d20-grey.svg", flags: { [MOD]: { table: t.key } },
+    description: t.note ?? "", img: "icons/svg/d20-grey.svg", flags: { [MOD]: { table: t.key, rev: t.rev ?? 1 } },
     results: t.rows.map((r, j) => { const [text, a, b] = Array.isArray(r) ? r : [r, j + 1, j + 1];
       return { type: "text", text, description: text, name: text, range: [a, b], weight: b - a + 1, drawn: false }; })
   }));
   if (docs.length) await RollTable.createDocuments(docs);
-  ui.notifications.info(docs.length ? `Остров: создано таблиц ${docs.length}. Твои правки в старых сохранены.` : "Остров: все таблицы уже есть. Твои правки не тронуты.");
+  ui.notifications.info(docs.length ? `Остров: создано таблиц ${docs.length}${stale.length ? ` (обновлено до новой редакции: ${stale.length})` : ""}. Твои правки в остальных сохранены.` : "Остров: все таблицы уже есть. Твои правки не тронуты.");
 }
 
 const table = (key) => game.tables.find(t => t.getFlag(MOD, "table") === key);
