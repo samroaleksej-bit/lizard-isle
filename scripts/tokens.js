@@ -16,8 +16,10 @@ export async function applyTokens() {
   const D = await (await fetch(`modules/${MOD}/data/tokens.json`)).json();
   const npcs = game.actors.filter(a => a.type === "npc");
   const byName = new Map();
-  for (const a of npcs) { const k = norm(a.name); if (!byName.has(k)) byName.set(k, []); byName.get(k).push(a); }
-  const find = (names) => names.flatMap(n => byName.get(norm(n)) ?? []);
+  // имя может быть «Чуул [Chuul]» или «Виверна / Wyvern» — ищем по целому имени и по каждой его части
+  const keys = (name) => [...new Set([norm(name), ...String(name ?? "").split(/[\[\]\/|()]/).map(norm)].filter(Boolean))];
+  for (const a of npcs) for (const k of keys(a.name)) { if (!byName.has(k)) byName.set(k, []); byName.get(k).push(a); }
+  const find = (names) => [...new Set(names.flatMap(n => byName.get(norm(n)) ?? []))];
 
   const direct = [];   // { t, actor }
   const copies = [];   // { t, base }
