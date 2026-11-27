@@ -524,7 +524,7 @@ class IslePanel extends ApplicationV2 {
         <p class="hint">Видео сначала залей в Data/labirint_ordena/.</p>
         <p><button data-act="echo">🌀 Собрать Пещеру Эха (Явь и Сон)</button></p>
         <p class="hint">Карты в Data/peshera_eha/.</p>
-        <p><button data-act="tables">🎲 Создать случайные таблицы острова (16)</button></p>
+        <p><button data-act="tables">🎲 Создать случайные таблицы острова (18)</button></p>
         <p class="hint">Повторное нажатие создаёт только недостающие — твои правки в таблицах сохраняются.</p>
         <p><button data-act="tokens">🎭 Раздать токены мобам острова</button></p>
         <p class="hint">Ищет в мире существ из боевых таблиц и ставит им токены с вариациями. Портреты не трогает. Сначала покажет список.</p>`;
